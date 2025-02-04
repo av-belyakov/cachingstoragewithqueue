@@ -5,19 +5,21 @@ import (
 	"time"
 )
 
-// CacheExecutedObjects кэш объектов с очередью
-type CacheExecutedObjects[T any] struct {
-	queue    listQueueObjects[T] //очередь объектов предназначенных для выполнения
-	cache    cacheStorages[T]    //кеш хранилища обработанных объектов
-	maxTtl   time.Duration       //максимальное время, по истечении которого запись в cacheStorages будет удалена
-	timeTick time.Duration       //интервал с которым будут выполнятся автоматические действия
+// CacheStorageWithQueue кэш объектов с очередью
+type CacheStorageWithQueue[T any] struct {
+	queue    queueObjects[T]  //очередь объектов предназначенных для выполнения
+	cache    cacheStorages[T] //кеш хранилища обработанных объектов
+	maxTtl   time.Duration    //максимальное время, по истечении которого запись в cacheStorages будет удалена
+	timeTick time.Duration    //интервал с которым будут выполнятся автоматические действия
 }
 
-type listQueueObjects[T any] struct {
+// queueObjects очередь объектов
+type queueObjects[T any] struct {
 	mutex    sync.Mutex
 	storages []T
 }
 
+// cacheStorages кэш данных
 type cacheStorages[T any] struct {
 	mutex sync.RWMutex
 	//основное хранилище
@@ -29,17 +31,17 @@ type cacheStorages[T any] struct {
 type storageParameters[T any] struct {
 	//исходный объект над которым выполняются действия
 	originalObject T
-	//основное время, по данному времени можно найти самый старый объект в кэше
-	timeMain time.Time
+	//фунция-обертка выполнения
+	cacheFunc func(int) bool
 	//общее время истечения жизни, время по истечению которого объект удаляется в любом
 	//случае в независимости от того, был ли он выполнен или нет, формируется time.Now().Add(c.maxTTL)
 	timeExpiry time.Time
-	//фунция-обертка выполнения
-	cacheFunc func(int) bool
-	//статус выполнения
-	isExecution bool
+	//основное время, по нему можно найти самый старый объект в кэше
+	timeMain time.Time
 	//результат выполнения
 	isCompletedSuccessfully bool
+	//статус выполнения
+	isExecution bool
 }
 
-type cacheOptions[T any] func(*CacheExecutedObjects[T]) error
+type cacheOptions[T any] func(*CacheStorageWithQueue[T]) error
