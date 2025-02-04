@@ -18,7 +18,7 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 		maxTtl: time.Duration(30 * time.Second),
 		//очередь
 		queue: queueObjects[T]{
-			storages: []T(nil),
+			storages: []CacheStorageFuncHandler[T](nil),
 		},
 		cache: cacheStorages[T]{
 			//значение по умолчанию максимального размера кэша
@@ -76,7 +76,7 @@ func (cache *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 
 	var (
 		isEmpty       bool
-		currentObject T
+		currentObject CacheStorageFuncHandler[T]
 	)
 
 	for range tick.C {
@@ -89,7 +89,7 @@ func (cache *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 			continue
 		}
 
-		cache.AddObjectToCache(currentObject.GetID, currentObject)
+		cache.AddObjectToCache(currentObject.GetID(), currentObject)
 	}
 }
 

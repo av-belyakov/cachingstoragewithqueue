@@ -15,11 +15,11 @@ func (c *CacheStorageWithQueue[T]) CleanQueue() {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
-	c.queue.storages = []T(nil)
+	c.queue.storages = []CacheStorageFuncHandler[T](nil)
 }
 
 // PushObjectToQueue добавляет в очередь объектов новый объект
-func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v T) {
+func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v CacheStorageFuncHandler[T]) {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
@@ -27,11 +27,11 @@ func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v T) {
 }
 
 // PullObjectFromQueue забирает из очереди новый объект или возвращает TRUE если очередь пуста
-func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (T, bool) {
+func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageFuncHandler[T], bool) {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
-	var obj T
+	var obj CacheStorageFuncHandler[T]
 	size := len(c.queue.storages)
 	if size == 0 {
 		return obj, true
@@ -40,7 +40,7 @@ func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (T, bool) {
 	obj = c.queue.storages[0]
 
 	if size == 1 {
-		c.queue.storages = make([]T, 0)
+		c.queue.storages = make([]CacheStorageFuncHandler[T], 0)
 
 		return obj, false
 	}

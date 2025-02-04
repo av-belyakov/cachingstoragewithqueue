@@ -7,11 +7,13 @@ type CacheStorageFuncHandler[T any] interface {
 }
 
 type CacheStorageGetter[T any] interface {
+	GetID() string
 	GetFunc() func(int) bool
 	GetObject() T
 }
 
 type CacheStorageSetter[T any] interface {
+	SetID(string)
 	SetFunc(func(int) bool)
 	SetObject(T)
 }

@@ -39,13 +39,26 @@ type SpecialObjectGetter interface {
 	GetObjectTags() *objectsmispformat.ListEventObjectTags
 }
 
+// SpecialObjectForCache является вспомогательным типом который реализует интерфейс
+// CacheStorageFuncHandler[T any] где в методе Comparison(objFromCache T) bool необходимо
+// реализовать подробное сравнение объекта типа T
 type SpecialObjectForCache[T SpecialObjectComparator] struct {
 	object      T
 	handlerFunc func(int) bool
+	id          string
 }
 
+// NewSpecialObjectForCache конструктор вспомогательного типа реализующий интерфейс CacheStorageFuncHandler[T any]
 func NewSpecialObjectForCache[T SpecialObjectComparator]() *SpecialObjectForCache[T] {
 	return &SpecialObjectForCache[T]{}
+}
+
+func (o *SpecialObjectForCache[T]) SetID(v string) {
+	o.id = v
+}
+
+func (o *SpecialObjectForCache[T]) GetID() string {
+	return o.id
 }
 
 func (o *SpecialObjectForCache[T]) SetObject(v T) {
@@ -108,71 +121,218 @@ func TestMain(m *testing.M) {
 
 func TestQueueHandler(t *testing.T) {
 	t.Run("Тест 1. Работа с очередью", func(t *testing.T) {
-		cache.PushObjectToQueue(objectsmispformat.NewListFormatsMISP())
-		cache.PushObjectToQueue(objectsmispformat.NewListFormatsMISP())
-		cache.PushObjectToQueue(objectsmispformat.NewListFormatsMISP())
+		//******* добавляем ПЕРВЫЙ тестовый объект ********
+		//инициируем вспомогательный тип реализующий интерфейс CacheStorageFuncHandler
+		//ult *objectsmispformat.ListFormatsMISP реализует вспомогательный интерфейс
+		//SpecialObjectComparator
+		//вспомогательный тип и вспомогательный интерфейс задаются пользователем и могут быть любыми
+		soc := NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
+		//для примера используем конструктор списка форматов MISP
+		objectTemplate := objectsmispformat.NewListFormatsMISP()
+		objectTemplate.ID = "75473-63475"
+		//заполняем вспомогательный тип
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			//здесь некий обработчик...
+			//в контексе работы с MISP здесь должен быть код отвечающий
+			//за REST запросы к серверу MISP
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//******* добавляем ВТОРОЙ тестовый объект ********
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
+		objectTemplate = objectsmispformat.NewListFormatsMISP()
+		objectTemplate.ID = "13422-24532"
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
+
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//******* добавляем ТРЕТИЙ тестовый объект ********
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
+		objectTemplate = objectsmispformat.NewListFormatsMISP()
+		objectTemplate.ID = "32145-13042"
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
+
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//проверка количества
 		assert.Equal(t, cache.SizeObjectToQueue(), 3)
 
-		_, siEmpty := cache.PullObjectFromQueue()
-		assert.False(t, siEmpty)
+		obj, isEmpty := cache.PullObjectFromQueue()
+		assert.False(t, isEmpty)
+		assert.Equal(t, obj.GetID(), "75473-63475")
+		//проверка возможности вызова функции обработчика
+		assert.True(t, obj.GetFunc()(0))
 		assert.Equal(t, cache.SizeObjectToQueue(), 2)
 
 		_, _ = cache.PullObjectFromQueue()
 		_, _ = cache.PullObjectFromQueue()
 		assert.Equal(t, cache.SizeObjectToQueue(), 0)
 
-		_, siEmpty = cache.PullObjectFromQueue()
-		assert.True(t, siEmpty)
+		_, isEmpty = cache.PullObjectFromQueue()
+		assert.True(t, isEmpty)
 	})
 
 	t.Run("Тест 1.1. Добавить в очередь некоторое количество объектов", func(t *testing.T) {
 		cache.CleanQueue()
 
+		//1.
+		soc := NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate := objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "3255-46673"
-		cache.PushObjectToQueue(objectTemplate)
-		cache.PushObjectToQueue(objectTemplate) //дублирующийся объект
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+		cache.PushObjectToQueue(soc) //дублирующийся объект
+
+		//2.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "8483-78578"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//3.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "3132-11223"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//4.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "6553-13323"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//5.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "8474-37722"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+		objectTemplate = objectsmispformat.NewListFormatsMISP()
+
+		//6.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "9123-84885"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//7.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "1200-04993"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//8.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "4323-29909"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//9.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "7605-89493"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//10.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "9423-13373"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
 
+			return true
+		})
+		cache.PushObjectToQueue(soc)
+
+		//11.
+		soc = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 		objectTemplate = objectsmispformat.NewListFormatsMISP()
 		objectTemplate.ID = "5238-74389"
-		cache.PushObjectToQueue(objectTemplate)
+		soc.SetID(objectTemplate.ID)
+		soc.SetObject(objectTemplate)
+		soc.SetFunc(func(int) bool {
+			fmt.Println("function with ID:", soc.GetID())
+
+			return true
+		})
+		cache.PushObjectToQueue(soc)
 
 		assert.Equal(t, cache.SizeObjectToQueue(), 12)
 	})
@@ -181,46 +341,24 @@ func TestQueueHandler(t *testing.T) {
 		//----- первый объект из очереди
 		obj, isEmpty := cache.PullObjectFromQueue()
 		assert.False(t, isEmpty)
-		assert.Equal(t, obj.ID, "3255-46673")
+		assert.Equal(t, obj.GetID(), "3255-46673")
 
-		specialObject := NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
-		specialObject.SetObject(obj)
-		specialObject.SetFunc(func(int) bool {
-			//здесь некий обработчик...
-			//в контексе работы с MISP здесь должен быть код отвечающий
-			//за REST запросы к серверу MISP
-			fmt.Println("function with ID:", obj.ID)
-
-			return true
-		})
-
-		err := cache.AddObjectToCache(specialObject.object.ID, specialObject)
+		err := cache.AddObjectToCache(obj.GetID(), obj)
 		assert.NoError(t, err)
 
-		_, ok := cache.GetObjectFromCacheByKey(specialObject.object.ID)
+		_, ok := cache.GetObjectFromCacheByKey(obj.GetID())
 		assert.True(t, ok)
 
 		//----- второй объект из очереди
 		obj, isEmpty = cache.PullObjectFromQueue()
 		assert.False(t, isEmpty)
 
-		specialObject = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
-		specialObject.SetObject(obj)
-		specialObject.SetFunc(func(int) bool {
-			//здесь некий обработчик...
-			//в контексе работы с MISP здесь должен быть код отвечающий
-			//за REST запросы к серверу MISP
-			fmt.Println("function with ID:", obj.ID)
-
-			return true
-		})
-
 		//должна быть ошибка так как второй в очереди объект имеет такой же
 		//идентификатор как и первый
-		err = cache.AddObjectToCache(specialObject.object.ID, specialObject)
+		err = cache.AddObjectToCache(obj.GetID(), obj)
 		assert.Error(t, err)
 
-		_, ok = cache.GetObjectFromCacheByKey(obj.ID)
+		_, ok = cache.GetObjectFromCacheByKey(obj.GetID())
 		assert.True(t, ok)
 
 		cacheSize := cache.SizeObjectToQueue()
@@ -228,18 +366,7 @@ func TestQueueHandler(t *testing.T) {
 			obj, isEmpty = cache.PullObjectFromQueue()
 			assert.False(t, isEmpty)
 
-			specialObject = NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
-			specialObject.SetObject(obj)
-			specialObject.SetFunc(func(int) bool {
-				//здесь некий обработчик...
-				//в контексе работы с MISP здесь должен быть код отвечающий
-				//за REST запросы к серверу MISP
-				fmt.Println("function with ID:", obj.ID)
-
-				return true
-			})
-
-			err := cache.AddObjectToCache(specialObject.object.ID, specialObject)
+			err := cache.AddObjectToCache(obj.GetID(), obj)
 			assert.NoError(t, err)
 		}
 
