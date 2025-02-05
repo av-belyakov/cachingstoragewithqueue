@@ -7,15 +7,17 @@ import (
 
 // CacheStorageWithQueue кэш объектов с очередью
 type CacheStorageWithQueue[T any] struct {
-	queue    queueObjects[T]  //очередь объектов предназначенных для выполнения
-	cache    cacheStorages[T] //кеш хранилища обработанных объектов
-	maxTtl   time.Duration    //максимальное время, по истечении которого запись в cacheStorages будет удалена
-	timeTick time.Duration    //интервал с которым будут выполнятся автоматические действия
+	queue    queueObjects[T]   //очередь объектов предназначенных для выполнения
+	cache    cacheStorages[T]  //кеш хранилища обработанных объектов
+	logging  WriterLoggingData //логирование данных
+	maxTtl   time.Duration     //максимальное время, по истечении которого запись в cacheStorages будет удалена
+	timeTick time.Duration     //интервал с которым будут выполнятся автоматические действия
+	isAsync  bool              //включить асинхронное выполнение заданий в кэше
 }
 
 // queueObjects очередь объектов
 type queueObjects[T any] struct {
-	mutex    sync.Mutex
+	mutex    sync.RWMutex
 	storages []CacheStorageFuncHandler[T]
 }
 
@@ -45,3 +47,5 @@ type storageParameters[T any] struct {
 }
 
 type cacheOptions[T any] func(*CacheStorageWithQueue[T]) error
+
+type writeLog struct{}

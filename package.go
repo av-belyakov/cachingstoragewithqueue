@@ -3,6 +3,8 @@ package cachingstoragewithqueue
 import (
 	"context"
 	"errors"
+	"fmt"
+	"runtime"
 	"time"
 )
 
@@ -15,7 +17,8 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 		//значение по умолчанию для интервала автоматической обработки
 		timeTick: time.Duration(5 * time.Second),
 		//значение по умолчанию для времени жизни объекта
-		maxTtl: time.Duration(30 * time.Second),
+		maxTtl:  time.Duration(30 * time.Second),
+		logging: &writeLog{},
 		//очередь
 		queue: queueObjects[T]{
 			storages: []CacheStorageFuncHandler[T](nil),
@@ -67,41 +70,48 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 // под заданные условия из которых удаляется объект с самым старым timeMain. После
 // удаления объекта с самым старым timeMain, обращение к очереди за новым объектом
 // предназначенным для обработки.
-func (cache *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
-	tick := time.NewTicker(cache.timeTick * time.Second)
+func (csq *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
+	tick := time.NewTicker(csq.timeTick * time.Second)
+
 	go func(ctx context.Context, tick *time.Ticker) {
 		<-ctx.Done()
 		tick.Stop()
 	}(ctx, tick)
 
-	var (
-		isEmpty       bool
-		currentObject CacheStorageFuncHandler[T]
-	)
-
 	for range tick.C {
 		//поиск и удаление из хранилища всех объектов у которых истекло время жизни
-		cache.DeleteForTimeExpiryObjectFromCache()
+		csq.DeleteForTimeExpiryObjectFromCache()
 
-		currentObject, isEmpty = cache.PullObjectFromQueue()
-		// если очередь пуста, нет объектов для обработки
-		if isEmpty {
+		//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
+		//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
+		if csq.GetCacheSize() >= csq.cache.maxSize {
+			if err := csq.DeleteOldestObjectFromCache(); err != nil {
+				_, f, l, _ := runtime.Caller(0)
+				csq.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+			}
+
 			continue
 		}
 
-		cache.AddObjectToCache(currentObject.GetID(), currentObject)
+		if !csq.isAsync {
+			//синхронная обработка задач
+			csq.syncExecution()
+		} else {
+			//асинхронная обработка задач
+			csq.asyncExecution()
+		}
 	}
 }
 
 // WithMaxTtl устанавливает максимальное время, по истечении которого запись в cacheStorages будет
 // удалена, допустимый интервал времени хранения записи от 10 до 86400 секунд
 func WithMaxTtl[T any](v int) cacheOptions[T] {
-	return func(ceo *CacheStorageWithQueue[T]) error {
+	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 10 || v > 86400 {
 			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 10 seconds or more than 24 hours (86400 seconds)")
 		}
 
-		ceo.maxTtl = time.Duration(v)
+		cswq.maxTtl = time.Duration(v)
 
 		return nil
 	}
@@ -111,12 +121,12 @@ func WithMaxTtl[T any](v int) cacheOptions[T] {
 // запускается новый виток автоматической обработки содержимого кэша, интервал значений должен
 // быть в диапазоне от 3 до 120 секунд
 func WithTimeTick[T any](v int) cacheOptions[T] {
-	return func(ceo *CacheStorageWithQueue[T]) error {
+	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 3 || v > 120 {
 			return errors.New("the set clock cycle time should not be less than 3 seconds or more than 120 seconds")
 		}
 
-		ceo.timeTick = time.Duration(v)
+		cswq.timeTick = time.Duration(v)
 
 		return nil
 	}
@@ -124,12 +134,32 @@ func WithTimeTick[T any](v int) cacheOptions[T] {
 
 // WithMaxSize устанавливает максимальный размер кэша, не может быть меньше 3 и больше 1000 хранимых объектов
 func WithMaxSize[T any](v int) cacheOptions[T] {
-	return func(ceo *CacheStorageWithQueue[T]) error {
+	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 3 || v > 1000 {
 			return errors.New("the maximum cache size cannot be less than 3 or more than 1000 objects")
 		}
 
-		ceo.cache.maxSize = v
+		cswq.cache.maxSize = v
+
+		return nil
+	}
+}
+
+// WithLogging устанавливает обработчик для записи информационных сообщений поступающих
+// от модуля. Принимаемое значение должно соответствовать интерфейсу с едиственным
+// методом Write(msgType, msg string) bool
+func WithLogging[T any](customLogging WriterLoggingData) cacheOptions[T] {
+	return func(cswq *CacheStorageWithQueue[T]) error {
+		cswq.logging = customLogging
+
+		return nil
+	}
+}
+
+// WithEnableAsyncProcessing устанавливает асинхронное выполнение функций из кэша
+func WithEnableAsyncProcessing[T any](bool) cacheOptions[T] {
+	return func(cswq *CacheStorageWithQueue[T]) error {
+		cswq.isAsync = true
 
 		return nil
 	}

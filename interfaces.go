@@ -17,3 +17,7 @@ type CacheStorageSetter[T any] interface {
 	SetFunc(func(int) bool)
 	SetObject(T)
 }
+
+type WriterLoggingData interface {
+	Write(msgType, msg string) bool
+}
