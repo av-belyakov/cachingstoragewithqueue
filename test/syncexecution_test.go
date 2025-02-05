@@ -103,8 +103,7 @@ func TestSyncExecution(t *testing.T) {
 			cache.SyncExecution_Test()
 		}
 
-		assert.Equal(t, len(cache.GetIndexesWithIsExecutionStatus()), len(listId))
-
+		assert.Equal(t, len(cache.GetIndexesWithIsCompletedSuccessfully()), len(listId))
 		cache.CleanCache()
 	})
 

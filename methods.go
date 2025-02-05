@@ -147,6 +147,10 @@ func (c *CacheStorageWithQueue[T]) GetObjectFromCacheMinTimeExpiry() (key string
 
 	var early time.Time
 	for k, v := range c.cache.storages {
+		if v.isExecution || v.isCompletedSuccessfully {
+			continue
+		}
+
 		if key == "" {
 			key = k
 			early = v.timeExpiry
@@ -172,8 +176,16 @@ func (c *CacheStorageWithQueue[T]) GetFuncFromCacheMinTimeExpiry() (key string, 
 	c.cache.mutex.RLock()
 	defer c.cache.mutex.RUnlock()
 
+	//тут не выполняется проверка для найденного самого старого объекта
+	// выполняется ли функция в настоящее время
+	//и была ли функция успешно выполнена
+
 	var early time.Time
 	for k, v := range c.cache.storages {
+		if v.isExecution || v.isCompletedSuccessfully {
+			continue
+		}
+
 		if key == "" {
 			key = k
 			early = v.timeExpiry
@@ -209,6 +221,24 @@ func (c *CacheStorageWithQueue[T]) GetIndexesWithIsExecutionStatus() []string {
 
 	for index, storage := range c.cache.storages {
 		if !storage.isExecution {
+			continue
+		}
+
+		indexes = append(indexes, index)
+	}
+
+	return indexes
+}
+
+// GetIndexesWithIsCompletedSuccessfully возвращает список индексов объектов, которые были успешно выполнены
+func (c *CacheStorageWithQueue[T]) GetIndexesWithIsCompletedSuccessfully() []string {
+	c.cache.mutex.RLock()
+	defer c.cache.mutex.RUnlock()
+
+	var indexes []string
+
+	for index, storage := range c.cache.storages {
+		if !storage.isCompletedSuccessfully {
 			continue
 		}
 
@@ -394,14 +424,14 @@ func (c *CacheStorageWithQueue[T]) setIsCompletedSuccessfullyFalse(key string) {
 // syncExecution выполняет синхронную обработку функций из кэша
 func (csq *CacheStorageWithQueue[T]) syncExecution() {
 	//******* test *****
-	fmt.Println("func 'syncExecution', START...")
+	//fmt.Println("func 'syncExecution', START...")
 	//******************
 
 	currentObject, isEmpty := csq.PullObjectFromQueue()
 	// если в очереди есть объекты для обработки
 	if !isEmpty {
 		//******* test *****
-		fmt.Println("func 'syncExecution', Add Object To Cache, ID:", currentObject.GetID())
+		//fmt.Println("func 'syncExecution', Add Object To Cache, ID:", currentObject.GetID())
 		//******************
 
 		csq.AddObjectToCache(currentObject.GetID(), currentObject)
@@ -410,7 +440,7 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() {
 	//проверяем, есть ли вообще что либо в кэше для обработки
 	if csq.GetCacheSize() == 0 {
 		//******* test *****
-		fmt.Println("func 'syncExecution', CacheSize == 0, EXIT")
+		//fmt.Println("func 'syncExecution', CacheSize == 0, EXIT")
 		//******************
 
 		return
@@ -419,7 +449,7 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() {
 	//проверяем, вообще что либо в настоящий момент выполняется
 	if len(csq.GetIndexesWithIsExecutionStatus()) > 0 {
 		//******* test *****
-		fmt.Println("func 'syncExecution', GetIndexesWithIsExecutionStatus > 0, EXIT")
+		//fmt.Println("func 'syncExecution', GetIndexesWithIsExecutionStatus > 0, EXIT")
 		//******************
 
 		return
@@ -429,7 +459,7 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() {
 	index, f := csq.GetFuncFromCacheMinTimeExpiry()
 
 	//******* test *****
-	fmt.Println("func 'syncExecution' get the oldest function with index:", index)
+	//fmt.Println("func 'syncExecution' get the oldest function with index:", index)
 	//******************
 
 	csq.cache.mutex.Lock()
@@ -448,7 +478,7 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() {
 	csq.setIsExecutionFalse(index)
 
 	//******* test *****
-	fmt.Println("func 'syncExecution', END...")
+	//fmt.Println("func 'syncExecution', END...")
 	//******************
 }
 
