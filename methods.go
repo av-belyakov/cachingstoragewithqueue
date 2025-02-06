@@ -61,12 +61,7 @@ func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageFuncHandle
 	return obj, false
 }
 
-// AddObjectToCache добавляет новый объект в хранилище, при этом выполняются следующие действия:
-// - сравнение размера кэша с параметром сache.maxSize
-// - при достижении максимального размера кэша, удаление самого старого объекта (поиск по timeMain)
-// - проверка, есть ли уже в кэше объект с таким же значением ключа и выполняется ли он
-// - поиск объектов в кэше которые имеют тот же id ключа что и объект из сигнатуры функции
-// - сравнение, по ключу, объектов из кэша и полученного из очереди
+// AddObjectToCache добавляет новый объект в кэш
 func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStorageFuncHandler[T]) error {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
