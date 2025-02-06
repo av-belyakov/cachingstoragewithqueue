@@ -84,7 +84,7 @@ func (csq *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 
 		//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
 		//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
-		if csq.GetCacheSize() >= csq.cache.maxSize {
+		if csq.GetCacheSize() == csq.cache.maxSize {
 			if err := csq.DeleteOldestObjectFromCache(); err != nil {
 				_, f, l, _ := runtime.Caller(0)
 				csq.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
@@ -93,12 +93,15 @@ func (csq *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 			continue
 		}
 
-		if !csq.isAsync {
-			//синхронная обработка задач
-			csq.syncExecution()
-		} else {
+		if csq.isAsync >= 2 {
 			//асинхронная обработка задач
 			csq.asyncExecution()
+		} else {
+			//синхронная обработка задач
+			if err := csq.syncExecution(); err != nil {
+				_, f, l, _ := runtime.Caller(0)
+				csq.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+			}
 		}
 	}
 }
@@ -156,10 +159,13 @@ func WithLogging[T any](customLogging WriterLoggingData) cacheOptions[T] {
 	}
 }
 
-// WithEnableAsyncProcessing устанавливает асинхронное выполнение функций из кэша
-func WithEnableAsyncProcessing[T any](bool) cacheOptions[T] {
+// WithEnableAsyncProcessing устанавливает асинхронное выполнение функций в кэша, при этом
+// асинхронное выполнение будет активировано только если количество потоков, заданных
+// через эту функцию, будут два и более. Максимальное количество потоков ограничено, фактически,
+// только размером кэша
+func WithEnableAsyncProcessing[T any](numberStreams int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
-		cswq.isAsync = true
+		cswq.isAsync = numberStreams
 
 		return nil
 	}

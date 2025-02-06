@@ -12,7 +12,7 @@ type CacheStorageWithQueue[T any] struct {
 	logging  WriterLoggingData //логирование данных
 	maxTtl   time.Duration     //максимальное время, по истечении которого запись в cacheStorages будет удалена
 	timeTick time.Duration     //интервал с которым будут выполнятся автоматические действия
-	isAsync  bool              //включить асинхронное выполнение заданий в кэше
+	isAsync  int               //включить асинхронное выполнение заданий в кэше
 }
 
 // queueObjects очередь объектов
@@ -35,6 +35,8 @@ type storageParameters[T any] struct {
 	originalObject T
 	//фунция-обертка выполнения
 	cacheFunc func(int) bool
+	//количество попыток выполнения функции
+	numberExecutionAttempts int
 	//общее время истечения жизни, время по истечению которого объект удаляется в любом
 	//случае в независимости от того, был ли он выполнен или нет, формируется time.Now().Add(c.maxTTL)
 	timeExpiry time.Time

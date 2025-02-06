@@ -312,13 +312,13 @@ func TestQueueHandler(t *testing.T) {
 		//очищаем данные из кеша
 		cache.CleanCache()
 
-		cache.AddObjectToCache_TestTimeExpiry("6447-47344", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
+		cache.AddObjectToCache_Test("6447-47344", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
 		time.Sleep(1 * time.Second)
 
-		cache.AddObjectToCache_TestTimeExpiry("3845-21283", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
+		cache.AddObjectToCache_Test("3845-21283", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
 		time.Sleep(1 * time.Second)
 
-		cache.AddObjectToCache_TestTimeExpiry("1734-32222", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
+		cache.AddObjectToCache_Test("1734-32222", time.Unix(time.Now().Unix()-35, 0), examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]())
 		time.Sleep(1 * time.Second)
 
 		indexOldestObject := cache.GetOldestObjectFromCache()

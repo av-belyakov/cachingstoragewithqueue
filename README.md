@@ -7,7 +7,8 @@
 1. Инициализируем новое хранилище где 'any' любой тип данных который будет добавлятся в очередь и хранится в кэше как исходный объект. В тестах используется специально созданный интерфейс SpecialObjectComparator обладающий определённым набором методов:
 
 ```
-	cache, err = cachingstoragewithqueue.NewCacheStorage[<тип_объекта>](
+	cache, err = cachingstoragewithq//кладем в очередь объекты которые необходимо обработать
+		addObjectToQueue(listId)ueue.NewCacheStorage[<тип_объекта>](
 		context.Background(),
 		cachingstoragewithqueue.WithMaxTtl[<тип_объекта>](int),
 		cachingstoragewithqueue.WithTimeTick[<тип_объекта>](int),
