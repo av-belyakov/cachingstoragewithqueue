@@ -1,6 +1,6 @@
 package cachingstoragewithqueue
 
-type CacheStorageFuncHandler[T any] interface {
+type CacheStorageHandler[T any] interface {
 	CacheStorageGetter[T]
 	CacheStorageSetter[T]
 	Comparison(T) bool

@@ -18,7 +18,7 @@ type CacheStorageWithQueue[T any] struct {
 // queueObjects очередь объектов
 type queueObjects[T any] struct {
 	mutex    sync.RWMutex
-	storages []CacheStorageFuncHandler[T]
+	storages []CacheStorageHandler[T]
 }
 
 // cacheStorages кэш данных

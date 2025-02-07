@@ -17,11 +17,11 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 		//значение по умолчанию для интервала автоматической обработки
 		timeTick: time.Duration(5 * time.Second),
 		//значение по умолчанию для времени жизни объекта
-		maxTtl:  time.Duration(30 * time.Second),
+		maxTtl:  time.Duration(3600 * time.Second),
 		logging: &writeLog{},
 		//очередь
 		queue: queueObjects[T]{
-			storages: []CacheStorageFuncHandler[T](nil),
+			storages: []CacheStorageHandler[T](nil),
 		},
 		cache: cacheStorages[T]{
 			//значение по умолчанию максимального размера кэша
@@ -107,10 +107,10 @@ func (csq *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 }
 
 // WithMaxTtl устанавливает максимальное время, по истечении которого запись в cacheStorages будет
-// удалена, допустимый интервал времени хранения записи от 10 до 86400 секунд
+// удалена, допустимый интервал времени хранения записи от 60 до 86400 секунд
 func WithMaxTtl[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
-		if v < 10 || v > 86400 {
+		if v < 300 || v > 86400 {
 			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 10 seconds or more than 24 hours (86400 seconds)")
 		}
 

@@ -18,7 +18,7 @@ func (c *CacheStorageWithQueue[T]) CleanQueue() {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
-	c.queue.storages = []CacheStorageFuncHandler[T](nil)
+	c.queue.storages = []CacheStorageHandler[T](nil)
 }
 
 // CleanCache очистка кэша
@@ -30,7 +30,7 @@ func (c *CacheStorageWithQueue[T]) CleanCache() {
 }
 
 // PushObjectToQueue добавляет в очередь объектов новый объект
-func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v CacheStorageFuncHandler[T]) {
+func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v CacheStorageHandler[T]) {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
@@ -38,11 +38,11 @@ func (c *CacheStorageWithQueue[T]) PushObjectToQueue(v CacheStorageFuncHandler[T
 }
 
 // PullObjectFromQueue забирает из очереди новый объект или возвращает TRUE если очередь пуста
-func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageFuncHandler[T], bool) {
+func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageHandler[T], bool) {
 	c.queue.mutex.Lock()
 	defer c.queue.mutex.Unlock()
 
-	var obj CacheStorageFuncHandler[T]
+	var obj CacheStorageHandler[T]
 	size := len(c.queue.storages)
 	if size == 0 {
 		return obj, true
@@ -51,7 +51,7 @@ func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageFuncHandle
 	obj = c.queue.storages[0]
 
 	if size == 1 {
-		c.queue.storages = make([]CacheStorageFuncHandler[T], 0)
+		c.queue.storages = make([]CacheStorageHandler[T], 0)
 
 		return obj, false
 	}
@@ -62,7 +62,7 @@ func (c *CacheStorageWithQueue[T]) PullObjectFromQueue() (CacheStorageFuncHandle
 }
 
 // AddObjectToCache добавляет новый объект в кэш
-func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStorageFuncHandler[T]) error {
+func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStorageHandler[T]) error {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
@@ -117,11 +117,6 @@ func (c *CacheStorageWithQueue[T]) GetOldestObjectFromCache() string {
 func (c *CacheStorageWithQueue[T]) GetObjectFromCacheByKey(key string) (T, bool) {
 	c.cache.mutex.RLock()
 	defer c.cache.mutex.RUnlock()
-
-	fmt.Println("||| func 'GetObjectFromCacheByKey', cache list:")
-	for k := range c.cache.storages {
-		fmt.Println("ID:", k)
-	}
 
 	storage, ok := c.cache.storages[key]
 
@@ -208,11 +203,6 @@ func (c *CacheStorageWithQueue[T]) GetFuncFromCacheMinTimeExpiry() (key string, 
 func (c *CacheStorageWithQueue[T]) GetCacheSize() int {
 	c.cache.mutex.RLock()
 	defer c.cache.mutex.RUnlock()
-
-	fmt.Println("||| func 'GetCacheSize', cache list:")
-	for k := range c.cache.storages {
-		fmt.Println("ID:", k)
-	}
 
 	return len(c.cache.storages)
 }
@@ -350,11 +340,7 @@ func (c *CacheStorageWithQueue[T]) DeleteOldestObjectFromCache() error {
 	//получаем самый старый объект в кэше
 	index := c.getOldestObjectFromCache()
 	if storage, ok := c.cache.storages[index]; ok {
-		fmt.Printf("func 'DeleteOldestObjectFromCache', isExecution:'%t', isCompletedSuccessfully:'%t', numberExecutionAttempts:'%d'\n", storage.isExecution, storage.isCompletedSuccessfully, storage.numberExecutionAttempts)
-
 		if storage.isExecution == false && (storage.isCompletedSuccessfully == true || storage.numberExecutionAttempts > 3) {
-			fmt.Println("func 'DeleteOldestObjectFromCache' - DELETE")
-
 			delete(c.cache.storages, index)
 		} else {
 			return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
@@ -453,26 +439,14 @@ func (c *CacheStorageWithQueue[T]) increaseNumberExecutionAttempts(key string) {
 
 // syncExecution выполняет синхронную обработку функций из кэша
 func (csq *CacheStorageWithQueue[T]) syncExecution() error {
-	//******* test *****
-	//fmt.Println("func 'syncExecution', START...")
-	//******************
-
 	//проверяем, вообще что либо в настоящий момент выполняется, если да, ожидание завершения
 	if len(csq.GetIndexesWithIsExecutionStatus()) > 0 {
-		//******* test *****
-		fmt.Println("func 'syncExecution', GetIndexesWithIsExecutionStatus > 0, EXIT, csq.GetIndexesWithIsExecutionStatus() =", csq.GetIndexesWithIsExecutionStatus())
-		//******************
-
 		return nil
 	}
 
 	currentObject, isEmpty := csq.PullObjectFromQueue()
 	// если очередь с объектами для обработки не пуста
 	if !isEmpty {
-		//******* test *****
-		fmt.Println("func 'syncExecution', Add Object To Cache, ID:", currentObject.GetID())
-		//******************
-
 		if err := csq.AddObjectToCache(currentObject.GetID(), currentObject); err != nil {
 			return err
 		}
@@ -480,23 +454,11 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() error {
 
 	//проверяем, есть ли вообще что либо в кэше для обработки
 	if csq.GetCacheSize() == 0 {
-		//******* test *****
-		//fmt.Println("func 'syncExecution', CacheSize == 0, EXIT")
-		//******************
-
 		return nil
 	}
 
-	fmt.Println("func 'syncExecution', csq.GetCacheSize() =", csq.GetCacheSize())
-
 	//получаем самую старую функцию, которая не выполняется или не была выполнена успешно
 	index, f := csq.GetFuncFromCacheMinTimeExpiry()
-
-	//******* test *****
-	fmt.Println("func 'syncExecution' get the oldest function with index:", index)
-	numAttempt, status := csq.GetNumberExecutionAttempts(index)
-	fmt.Println("func 'syncExecution', count attempt:", numAttempt, " status:", status)
-	//******************
 
 	csq.cache.mutex.Lock()
 	defer csq.cache.mutex.Unlock()
@@ -515,12 +477,6 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() error {
 	//функция не обрабатывается
 	csq.setIsExecutionFalse(index)
 
-	//******* test *****
-	//if storage, ok := csq.cache.storages[index]; ok {
-	//	fmt.Println("func 'syncExecution', IsExecution:", storage.isExecution, " isCompletedSuccessfully:", storage.isCompletedSuccessfully)
-	//}
-	//******************
-
 	return nil
 }
 
@@ -532,8 +488,6 @@ func (csq *CacheStorageWithQueue[T]) asyncExecution() {
 // Write метод-заглушка реализуемая в конструкторе CacheStorageWithQueue 'по умолчанию'
 // если при инициализации конструктора не была добавлена опция WithLogging
 func (wl *writeLog) Write(msgType, msg string) bool {
-	fmt.Printf("package 'CacheStorageWithQueue', default logging: %s - %s\n", msgType, msg)
-
 	return true
 }
 
@@ -549,7 +503,7 @@ func (csq *CacheStorageWithQueue[T]) SyncExecution_Test() {
 }
 
 // AddObjectToCache_Test добавляет новый объект в хранилище (только для теста)
-func (c *CacheStorageWithQueue[T]) AddObjectToCache_Test(key string, timeExpiry time.Time, value CacheStorageFuncHandler[T]) error {
+func (c *CacheStorageWithQueue[T]) AddObjectToCache_Test(key string, timeExpiry time.Time, value CacheStorageHandler[T]) error {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
