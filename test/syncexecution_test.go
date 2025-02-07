@@ -33,18 +33,18 @@ func TestSyncExecution(t *testing.T) {
 		"9999-9999",
 	}
 
-	/*listIdTwo := []string{
+	listIdTwo := []string{
 		"aaaa-1111",
 		"bbbb-2222",
 		"cccc-3333",
 		"dddd-4444",
 		"eeee-5555",
-		"ffff-6666",
-		"gggg-7777",
-		"hhhh-8888",
-		"iiii-9999",
-		"ssss-0000",
-	}*/
+		//"ffff-6666",
+		//"gggg-7777",
+		//"hhhh-8888",
+		//"iiii-9999",
+		//"ssss-0000",
+	}
 
 	//добавление в очередь новых объектов
 	addObjectToQueue := func(lid []string) {
@@ -53,8 +53,6 @@ func TestSyncExecution(t *testing.T) {
 			//для примера используем конструктор списка форматов MISP
 			objectTemplate := objectsmispformat.NewListFormatsMISP()
 			objectTemplate.ID = id
-
-			//t.Log("Object ID:", objectTemplate.GetID())
 
 			//заполняем вспомогательный тип
 			soc.SetID(objectTemplate.GetID())
@@ -119,7 +117,7 @@ func TestSyncExecution(t *testing.T) {
 		//один объект в кэше
 		assert.Equal(t, cache.GetCacheSize(), 1)
 
-		// кладем в очередь объекты которые необходимо обработать
+		// кладем в ОЧЕРЕДЬ, не в КЭШ, объекты которые необходимо обработать
 		addObjectToQueue(listIdOne)
 		//размер очереди должен быть 10 объектов
 		assert.Equal(t, cache.GetSizeObjectToQueue(), 10)
@@ -132,38 +130,60 @@ func TestSyncExecution(t *testing.T) {
 			num++
 
 			if num == 4 {
-				//меняем статус состояния объекта isExecute = true
-				cache.SetIsExecutionFalse(obj.GetID())
-			}
+				//пока не поменяли статус выполнения (isExecute) единственного объекта
+				//на true количество объектов в кэше не должно увеличиватся
+				assert.Equal(t, cache.GetCacheSize(), 1)
 
-			if cache.GetSizeObjectToQueue() == 0 {
-				break
+				//меняем статус состояния объекта isExecute = false что бы разрешить
+				//добавление новых объектов
+				cache.SetIsExecutionFalse(obj.GetID())
+				status, ok := cache.GetIsExecution(obj.GetID())
+				assert.True(t, ok)
+				t.Logf("_______ change status 'isExecute' for object with id '%s' to '%t' ______", obj.GetID(), status)
 			}
 
 			//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
 			//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
+			t.Logf("======= cache.GetCacheSize(): '%d' == '%d' cache.GetCacheMaxSize_Test()", cache.GetCacheSize(), cache.GetCacheMaxSize_Test())
 			if cache.GetCacheSize() == cache.GetCacheMaxSize_Test() {
+				t.Log("cache.GetSizeObjectToQueue() =", cache.GetSizeObjectToQueue())
+				t.Log("Delete:", err)
+
 				if err := cache.DeleteOldestObjectFromCache(); err != nil {
-					t.Log("Delete:", err)
+					t.Log("Delete error:", err)
 				}
 
 				continue
 			}
 
+			//пытаемся выполнить синхронную обработку, там же и добавляем новые объекты
+			//из кэша, однако первые 4 прохода объекты не добавляются, так как в кэше
+			//есть 1 объект мо статусом isExecute = true
 			cache.SyncExecution_Test()
+
+			//если из кэша не удалять самый старый объект, то тогда из очереди в кэш будут
+			// добавлены только 9 элементов, соответственно выход из цикла когда в очереди
+			// остался только 1 элемент, если раскомментировать удаление, колторое ниже,
+			// тогда сравнение должно быть с 0
+			if cache.GetSizeObjectToQueue() == 0 {
+				break
+			}
 		}
 
-		//проверяем количество добавленых объектов, ни один из объектов не должен быть
-		// добавлен в обработку, так как в кэше находится объект в статусе обработки
+		//проверяем количество добавленых в КЭШ объектов
+		//добавлен список с 10 элементами так как элемент с id "1234-5678"
+		//был удалён ранее
 		assert.Equal(t, cache.GetCacheSize(), 10)
 
-		//добавлен список только с 9 элементами не включая последний элемент списка listId
-		o, isExist := cache.GetObjectFromCacheByKey(listIdOne[len(listIdOne)-1])
-		t.Log("___ object ___", o)
+		// есть самый старый элемент (0000-0000)
+		assert.Equal(t, cache.GetOldestObjectFromCache(), listIdOne[0])
+
+		//есть самый последний элемент (9999-9999)
+		_, isExist := cache.GetObjectFromCacheByKey(listIdOne[len(listIdOne)-1])
 		assert.True(t, isExist)
 	})
 
-	/*t.Run("Тест 3, добавление объектов производится ни один объект в кэше не участвует в обработке", func(t *testing.T) {
+	t.Run("Тест 3, добавление объектов производится ни один объект в кэше не участвует в обработке", func(t *testing.T) {
 		// кладем в очередь объекты которые необходимо обработать
 		addObjectToQueue(listIdTwo)
 
@@ -172,17 +192,17 @@ func TestSyncExecution(t *testing.T) {
 			//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
 			if cache.GetCacheSize() >= cache.GetCacheMaxSize_Test() {
 				if err := cache.DeleteOldestObjectFromCache(); err != nil {
-					t.Log("error:", err)
+					t.Log("Delete error:", err)
 				}
 
 				continue
 			}
 
+			cache.SyncExecution_Test()
+
 			if cache.GetSizeObjectToQueue() == 0 {
 				break
 			}
-
-			cache.SyncExecution_Test()
 		}
 
 		t.Log("--------", cache.GetCacheSize())
@@ -190,5 +210,5 @@ func TestSyncExecution(t *testing.T) {
 		//объектов состоит из 10, то при добавлении самый старый объект (первый из добавленых)
 		//должен быть удалён
 		assert.Equal(t, cache.GetCacheSize(), 10)
-	})*/
+	})
 }

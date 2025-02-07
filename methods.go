@@ -118,6 +118,11 @@ func (c *CacheStorageWithQueue[T]) GetObjectFromCacheByKey(key string) (T, bool)
 	c.cache.mutex.RLock()
 	defer c.cache.mutex.RUnlock()
 
+	fmt.Println("||| func 'GetObjectFromCacheByKey', cache list:")
+	for k := range c.cache.storages {
+		fmt.Println("ID:", k)
+	}
+
 	storage, ok := c.cache.storages[key]
 
 	return storage.originalObject, ok
@@ -203,6 +208,11 @@ func (c *CacheStorageWithQueue[T]) GetFuncFromCacheMinTimeExpiry() (key string, 
 func (c *CacheStorageWithQueue[T]) GetCacheSize() int {
 	c.cache.mutex.RLock()
 	defer c.cache.mutex.RUnlock()
+
+	fmt.Println("||| func 'GetCacheSize', cache list:")
+	for k := range c.cache.storages {
+		fmt.Println("ID:", k)
+	}
 
 	return len(c.cache.storages)
 }
