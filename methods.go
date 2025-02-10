@@ -452,6 +452,8 @@ func (csq *CacheStorageWithQueue[T]) syncExecution() error {
 		}
 	}
 
+	fmt.Println("___ func 'syncExecution', csq.GetCacheSize() =", csq.GetCacheSize())
+
 	//проверяем, есть ли вообще что либо в кэше для обработки
 	if csq.GetCacheSize() == 0 {
 		return nil

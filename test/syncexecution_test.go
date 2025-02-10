@@ -15,7 +15,7 @@ import (
 func TestSyncExecution(t *testing.T) {
 	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
 		context.Background(),
-		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](60),
+		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))
 	assert.NoError(t, err)
@@ -80,6 +80,8 @@ func TestSyncExecution(t *testing.T) {
 			//кладем в кэш все объекты из очереди
 			cache.SyncExecution_Test()
 		}
+
+		fmt.Println("--- GetCacheSize():", cache.GetCacheSize())
 
 		assert.Equal(t, len(cache.GetIndexesWithIsCompletedSuccessfully()), len(listIdOne))
 
