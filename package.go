@@ -84,7 +84,7 @@ func (c *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 			go c.asyncExecution(chStopHandler)
 		} else {
 			//синхронная обработка задач
-			//go c.syncExecution(chStopHandler)
+			go c.syncExecution(chStopHandler)
 		}
 	}
 }

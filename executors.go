@@ -47,6 +47,8 @@ func (c *CacheStorageWithQueue[T]) syncExecution(chStop chan<- HandlerOptionsSto
 
 // asyncExecution выполняет асинхронную обработку функций из кэша
 func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsStoper) {
+	fmt.Println("func 'asyncExecution', START...")
+
 	listIndexes := c.GetIndexesWithIsExecutionStatus()
 
 	//проверяем, количество выполняемых функций соответствует максимальному количеству
@@ -56,10 +58,13 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsSt
 	}
 
 	count := c.isAsync - len(listIndexes)
+
+	fmt.Println("func 'asyncExecution', count:", count)
+
 	pushObjectToCache := func(count int) []string {
 		indexes := make([]string, 0, count)
 
-		for i := 0; i <= count; i++ {
+		for i := 0; i < count; i++ {
 			object, isEmpty := c.PullObjectFromQueue()
 			if isEmpty {
 				return indexes
@@ -82,6 +87,8 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsSt
 		return
 	}
 
+	fmt.Println("func 'asyncExecution', indexes:", indexes)
+
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
@@ -97,11 +104,9 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsSt
 		c.increaseNumberExecutionAttempts(index)
 
 		go func() {
-			result := f(0)
-
 			chStop <- &stopHandlerOptions{
 				index:     index,
-				isSuccess: result,
+				isSuccess: f(0),
 			}
 		}()
 	}
