@@ -6,7 +6,7 @@ import (
 )
 
 // syncExecution выполняет синхронную обработку функций из кэша
-func (c *CacheStorageWithQueue[T]) syncExecution( /*chStop chan<- string /*HandlerOptionsStoper*/ ) {
+func (c *CacheStorageWithQueue[T]) syncExecution(chStop chan<- HandlerOptionsStoper) {
 	//проверяем, вообще что либо в настоящий момент выполняется, если да, ожидание завершения
 	if len(c.GetIndexesWithIsExecutionStatus()) > 0 {
 		return
@@ -23,8 +23,6 @@ func (c *CacheStorageWithQueue[T]) syncExecution( /*chStop chan<- string /*Handl
 		}
 	}
 
-	fmt.Println("____ func 'syncExecution', c.GetCacheSize():", c.GetCacheSize())
-
 	//проверяем, есть ли вообще что либо в кэше для обработки
 	if c.GetCacheSize() == 0 {
 		return
@@ -38,33 +36,13 @@ func (c *CacheStorageWithQueue[T]) syncExecution( /*chStop chan<- string /*Handl
 	c.setIsExecutionTrue(index)
 	// увеличиваем количество попыток выполнения функции
 	c.increaseNumberExecutionAttempts(index)
-
-	if f(0) {
-		c.setIsCompletedSuccessfullyTrue(index)
-	} else {
-		c.setIsCompletedSuccessfullyFalse(index)
-	}
-
-	//функция не обрабатывается
-	c.setIsExecutionFalse(index)
-
 	c.cache.mutex.Unlock()
 
-	//go func(f func(int) bool) {
-	/*
-		sho := NewStopHandlerOptions()
-		sho.SetIndex(index)
-		sho.SetIsSuccess(f(0))
+	sho := NewStopHandlerOptions()
+	sho.SetIndex(index)
+	sho.SetIsSuccess(f(0))
 
-		a, b := c.GetIsExecution(index)
-		fmt.Println("____ func 'syncExecution', index:", index)
-		fmt.Println("____ func 'syncExecution', IsExecution:", a, " isExist:", b)
-		fmt.Println("____ func 'syncExecution', StopHandlerOptions, index:", sho.GetIndex())
-
-		chStop <- index*/
-	//chStop <- sho
-	//}(f)
-
+	chStop <- sho
 }
 
 // asyncExecution выполняет асинхронную обработку функций из кэша

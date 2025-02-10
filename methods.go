@@ -98,7 +98,7 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 	//если поиск подобного объекта по ключу не дал результатов то просто добавляем объект
 	storage, ok := c.cache.storages[key]
 	if !ok {
-		fmt.Println("1111 BEFORE func 'AddObjectToCache', SIZE =", c.cache.storages)
+		//fmt.Println("1111 BEFORE func 'AddObjectToCache', SIZE =", c.cache.storages)
 
 		c.cache.storages[key] = storageParameters[T]{
 			timeMain:       time.Now(),
@@ -107,7 +107,7 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 			cacheFunc:      value.GetFunc(),
 		}
 
-		fmt.Println("1111 AFTER func 'AddObjectToCache', SIZE =", c.cache.storages)
+		//fmt.Println("1111 AFTER func 'AddObjectToCache', SIZE =", c.cache.storages)
 
 		return nil
 	}
@@ -134,8 +134,6 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 
 	//добавление нового объекта в кэш
 	c.cache.storages[key] = storage
-
-	fmt.Println("2222 func 'AddObjectToCache', SIZE =", c.cache.storages)
 
 	return nil
 }
@@ -369,9 +367,9 @@ func (c *CacheStorageWithQueue[T]) ChangeValues(index string, isSuccess bool) {
 	c.setIsExecutionFalse(index)
 
 	fmt.Println("func 'ChangeValues', index:", index)
-	if storage, ok := c.cache.storages[index]; ok {
-		fmt.Println("func 'ChangeValues', index:", index, storage)
-	}
+	//if storage, ok := c.cache.storages[index]; ok {
+	//	fmt.Println("func 'ChangeValues', index:", index, storage)
+	//}
 }
 
 // DeleteForTimeExpiryObjectFromCache удаляет все объекты у которых истекло время жизни, без учета других параметров
@@ -395,6 +393,8 @@ func (c *CacheStorageWithQueue[T]) DeleteOldestObjectFromCache() error {
 	index := c.getOldestObjectFromCache()
 	if storage, ok := c.cache.storages[index]; ok {
 		if storage.isExecution == false && (storage.isCompletedSuccessfully == true || storage.numberExecutionAttempts > 3) {
+			fmt.Printf("func 'DeleteOldestObjectFromCache', DELETE index:'%s'\n", index)
+
 			delete(c.cache.storages, index)
 		} else {
 			return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
@@ -515,8 +515,8 @@ func (c *CacheStorageWithQueue[T]) GetIsAsync_Test() int {
 }
 
 // SyncExecution_Test выполняет синхронную обработку функций из кэша (только для теста)
-func (c *CacheStorageWithQueue[T]) SyncExecution_Test( /*chStop chan<- string /*HandlerOptionsStoper*/ ) {
-	c.syncExecution( /*chStop*/ )
+func (c *CacheStorageWithQueue[T]) SyncExecution_Test(chStop chan<- HandlerOptionsStoper) {
+	c.syncExecution(chStop)
 }
 
 // AsyncExecution_Test выполняет асинхронную обработку функций из кэша (только для теста)
