@@ -42,76 +42,59 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 	return cacheExObj, nil
 }
 
-//	isExecution             bool           //статус выполнения
-//	isCompletedSuccessfully bool           //результат выполнения
-
-// automaticExecution работает с очередями и кэшем объектов
-// С заданным интервалом времени выполняет следующие действия:
-// 1. Проверка, есть ли в кеше объекты. Если кеш пустой, проверка
-// наличия объектов в очереди, если она пуста - ожидание. Если очередь
-// не пуста, взять объект из очереди и положить в кеш. Запуск вновь
-// добавленного объекта. Если кеш не пуст, то выполняется пункт 2.
-// 2. Проверка, есть ли в кеше объект со стаусом isExecution=true, если
-// есть, то ожидание завершения выполнения объекта в результате которого
-// меняется статус объекта на isExecution=true (может быть false?) и isCompletedSuccessfully=true.
-// Если статус объекта меняется на isExecution=true (может быть false?), а isCompletedSuccessfully=false
-// то выполняется повторный запуск объекта. Если статус объекта isExecution=true (может быть false?)
-// и isCompletedSuccessfully=true, то выполняется пункт 3.
-// 3. Проверка, есть ли в кеше свободное место, равное переменной maxSize, если
-// свободное место есть, выполняется ПОИСК в кеше, по уникальному ключу, объекта
-// соответствующего объекту принимаемому из очереди, при условии что, очередь
-// не пуста. Если такой объект находится, то выполняется СРАВНЕНИЕ двух объектов.
-// При их полном совпадении объект, полученный из очереди удаляется, а в обработку
-// добавляется следующий в очереди объект.
-// Вновь добавленный объект запускается на выполнение. Если в кеше нет свободного
-// места переходим к пункту 4.
-// 4. Проверка, есть ли в кеше объекты со статусом isExecution=false и
-// isCompletedSuccessfully=true, если есть, то формируется список объектов подходящих
-// под заданные условия из которых удаляется объект с самым старым timeMain. После
-// удаления объекта с самым старым timeMain, обращение к очереди за новым объектом
-// предназначенным для обработки.
-func (csq *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
-	tick := time.NewTicker(csq.timeTick * time.Second)
+// automaticExecution автоматическаяобработка очередей и кэш объектов
+func (c *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
+	tick := time.NewTicker(c.timeTick * time.Second)
+	chStopHandler := make(chan HandlerOptionsStoper)
 
 	go func(ctx context.Context, tick *time.Ticker) {
 		<-ctx.Done()
 		tick.Stop()
 	}(ctx, tick)
 
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case obj := <-chStopHandler:
+				c.ChangeValues(obj.GetIndex(), obj.GetIsSuccess())
+			}
+		}
+	}()
+
 	for range tick.C {
 		//поиск и удаление из хранилища всех объектов у которых истекло время жизни
-		csq.DeleteForTimeExpiryObjectFromCache()
+		c.DeleteForTimeExpiryObjectFromCache()
 
 		//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
 		//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
-		if csq.GetCacheSize() == csq.cache.maxSize {
-			if err := csq.DeleteOldestObjectFromCache(); err != nil {
+		if c.GetCacheSize() == c.cache.maxSize {
+			if err := c.DeleteOldestObjectFromCache(); err != nil {
 				_, f, l, _ := runtime.Caller(0)
-				csq.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+				c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
 			}
 
 			continue
 		}
 
-		if csq.isAsync >= 2 {
+		if c.isAsync >= 2 {
 			//асинхронная обработка задач
-			csq.asyncExecution()
+			go c.asyncExecution(chStopHandler)
 		} else {
 			//синхронная обработка задач
-			if err := csq.syncExecution(); err != nil {
-				_, f, l, _ := runtime.Caller(0)
-				csq.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
-			}
+			//go c.syncExecution(chStopHandler)
 		}
 	}
 }
 
 // WithMaxTtl устанавливает максимальное время, по истечении которого запись в cacheStorages будет
-// удалена, допустимый интервал времени хранения записи от 60 до 86400 секунд
+// удалена, допустимый интервал времени хранения записи от 300 до 86400 секунд
 func WithMaxTtl[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 300 || v > 86400 {
-			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 10 seconds or more than 24 hours (86400 seconds)")
+			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 300 seconds or more than 24 hours (86400 seconds)")
 		}
 
 		cswq.maxTtl = time.Duration(v)

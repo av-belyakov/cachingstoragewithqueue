@@ -51,3 +51,8 @@ type storageParameters[T any] struct {
 type cacheOptions[T any] func(*CacheStorageWithQueue[T]) error
 
 type writeLog struct{}
+
+type stopHandlerOptions struct {
+	index     string
+	isSuccess bool
+}
