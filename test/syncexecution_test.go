@@ -3,7 +3,9 @@ package cachingstoragewithqueue_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 
@@ -12,13 +14,39 @@ import (
 	"github.com/av-belyakov/objectsmispformat"
 )
 
+type stopOptions struct {
+	index     string
+	isSuccess bool
+}
+
+// GetIndex получить индекс
+func (sho *stopOptions) GetIndex() string {
+	return sho.index
+}
+
+// SetIndex установить индекс
+func (sho *stopOptions) SetIndex(v string) {
+	sho.index = v
+}
+
+// GetIsSuccess получить статус
+func (sho *stopOptions) GetIsSuccess() bool {
+	return sho.isSuccess
+}
+
+// SetIsSuccess установить статус
+func (sho *stopOptions) SetIsSuccess(v bool) {
+	sho.isSuccess = v
+}
+
 func TestSyncExecution(t *testing.T) {
 	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-		context.Background(),
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))
-	assert.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	listIdOne := []string{
 		"0000-0000",
@@ -69,7 +97,24 @@ func TestSyncExecution(t *testing.T) {
 		}
 	}
 
-	t.Run("Тест 1, в результате которого все объекты должны быть помечены как выполненные", func(t *testing.T) {
+	t.Run("Тест 1. Все объекты должны быть помечены как выполненные", func(t *testing.T) {
+		chStop := make(chan cachingstoragewithqueue.HandlerOptionsStoper)
+		ctx, ctxClose := context.WithCancel(context.Background())
+
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+
+				case data := <-chStop:
+					fmt.Printf("received from chan, index:'%s', isSuccess:'%t'\n", data.GetIndex(), data.GetIsSuccess())
+
+					cache.ChangeValues(data.GetIndex(), data.GetIsSuccess())
+				}
+			}
+		}()
+
 		//кладем в очередь объекты которые необходимо обработать
 		addObjectToQueue(listIdOne)
 		for {
@@ -78,18 +123,21 @@ func TestSyncExecution(t *testing.T) {
 			}
 
 			//кладем в кэш все объекты из очереди
-			cache.SyncExecution_Test()
+			cache.SyncExecution_Test(chStop)
 		}
 
-		fmt.Println("--- GetCacheSize():", cache.GetCacheSize())
+		time.Sleep(1 * time.Second)
 
+		ctxClose()
+
+		t.Log("cache.GetCacheSize():", cache.GetCacheSize())
 		assert.Equal(t, len(cache.GetIndexesWithIsCompletedSuccessfully()), len(listIdOne))
 
 		//очищаем кэш
 		cache.CleanCache()
 	})
 
-	t.Run("Тест 2, добавление новых объектов из очереди не производится если в кэше есть хотя бы одно активное задание", func(t *testing.T) {
+	t.Run("Тест 2. Добавление новых объектов из очереди не производится если в кэше есть хотя бы одно активное задание", func(t *testing.T) {
 		//очередь пуста
 		assert.Equal(t, cache.GetSizeObjectToQueue(), 0)
 
@@ -127,6 +175,21 @@ func TestSyncExecution(t *testing.T) {
 		//меняем статус состояния объекта isExecute = true
 		cache.SetIsExecutionTrue(obj.GetID())
 
+		chStop := make(chan cachingstoragewithqueue.HandlerOptionsStoper)
+		ctx, ctxClose := context.WithCancel(context.Background())
+
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+
+				case data := <-chStop:
+					cache.ChangeValues(data.GetIndex(), data.GetIsSuccess())
+				}
+			}
+		}()
+
 		var num int
 		for {
 			num++
@@ -149,7 +212,6 @@ func TestSyncExecution(t *testing.T) {
 			t.Logf("======= cache.GetCacheSize(): '%d' == '%d' cache.GetCacheMaxSize_Test()", cache.GetCacheSize(), cache.GetCacheMaxSize_Test())
 			if cache.GetCacheSize() == cache.GetCacheMaxSize_Test() {
 				t.Log("cache.GetSizeObjectToQueue() =", cache.GetSizeObjectToQueue())
-				t.Log("Delete:", err)
 
 				if err := cache.DeleteOldestObjectFromCache(); err != nil {
 					t.Log("Delete error:", err)
@@ -161,7 +223,7 @@ func TestSyncExecution(t *testing.T) {
 			//пытаемся выполнить синхронную обработку, там же и добавляем новые объекты
 			//из кэша, однако первые 4 прохода объекты не добавляются, так как в кэше
 			//есть 1 объект мо статусом isExecute = true
-			cache.SyncExecution_Test()
+			cache.SyncExecution_Test(chStop)
 
 			//если из кэша не удалять самый старый объект, то тогда из очереди в кэш будут
 			// добавлены только 9 элементов, соответственно выход из цикла когда в очереди
@@ -171,6 +233,8 @@ func TestSyncExecution(t *testing.T) {
 				break
 			}
 		}
+
+		ctxClose()
 
 		//проверяем количество добавленых в КЭШ объектов
 		//добавлен список с 10 элементами так как элемент с id "1234-5678"
@@ -185,10 +249,24 @@ func TestSyncExecution(t *testing.T) {
 		assert.True(t, isExist)
 	})
 
-	t.Run("Тест 3, добавление объектов производится ни один объект в кэше не участвует в обработке", func(t *testing.T) {
+	t.Run("Тест 3. Добавление объектов производится ни один объект в кэше не участвует в обработке", func(t *testing.T) {
+		chStop := make(chan cachingstoragewithqueue.HandlerOptionsStoper)
+		ctx, ctxClose := context.WithCancel(context.Background())
+
+		go func() {
+			for {
+				select {
+				case <-ctx.Done():
+					return
+
+				case data := <-chStop:
+					cache.ChangeValues(data.GetIndex(), data.GetIsSuccess())
+				}
+			}
+		}()
+
 		// кладем в очередь объекты которые необходимо обработать
 		addObjectToQueue(listIdTwo)
-
 		for {
 			//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
 			//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
@@ -200,12 +278,14 @@ func TestSyncExecution(t *testing.T) {
 				continue
 			}
 
-			cache.SyncExecution_Test()
+			cache.SyncExecution_Test(chStop)
 
 			if cache.GetSizeObjectToQueue() == 0 {
 				break
 			}
 		}
+
+		ctxClose()
 
 		t.Log("--------", cache.GetCacheSize())
 		//так как размер кеша 10 объектов, в кэше уже есть 1 элемент, а список добавляемых

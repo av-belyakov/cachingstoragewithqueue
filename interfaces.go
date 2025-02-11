@@ -21,3 +21,10 @@ type CacheStorageSetter[T any] interface {
 type WriterLoggingData interface {
 	Write(msgType, msg string) bool
 }
+
+type HandlerOptionsStoper interface {
+	GetIndex() string
+	SetIndex(v string)
+	GetIsSuccess() bool
+	SetIsSuccess(v bool)
+}

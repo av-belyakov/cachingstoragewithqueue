@@ -1,7 +1,6 @@
 package cachingstoragewithqueue_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -15,7 +14,6 @@ import (
 func TestSizeObjectToQueue(t *testing.T) {
 	t.Run("Тест метода GetSizeObjectToQueue который возвращает размер очереди", func(t *testing.T) {
 		cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-			context.Background(),
 			cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](60),
 			cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 			cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))
