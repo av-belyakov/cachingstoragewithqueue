@@ -1,7 +1,6 @@
 package cachingstoragewithqueue_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -14,7 +13,6 @@ import (
 
 func TestSetStatusObject(t *testing.T) {
 	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-		context.Background(),
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](60),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))

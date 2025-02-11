@@ -1,7 +1,6 @@
 package cachingstoragewithqueue_test
 
 import (
-	"context"
 	"fmt"
 	"testing"
 
@@ -20,7 +19,6 @@ func TestPullMaxObjectFromQueue(t *testing.T) {
 
 	t.Run("Тест 1. Инициализация хранилища", func(t *testing.T) {
 		cache, err = cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-			context.Background(),
 			cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 			cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 			cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10),

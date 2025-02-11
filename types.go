@@ -10,8 +10,8 @@ type CacheStorageWithQueue[T any] struct {
 	queue    queueObjects[T]   //очередь объектов предназначенных для выполнения
 	cache    cacheStorages[T]  //кеш хранилища обработанных объектов
 	logging  WriterLoggingData //логирование данных
-	maxTtl   time.Duration     //максимальное время, по истечении которого запись в cacheStorages будет удалена
-	timeTick time.Duration     //интервал с которым будут выполнятся автоматические действия
+	maxTtl   time.Duration     //максимальное время, в секундах, по истечении которого запись в cacheStorages будет удалена
+	timeTick time.Duration     //интервал, в секундах, с которым будут выполнятся автоматические действия
 	isAsync  int               //включить асинхронное выполнение заданий в кэше
 }
 

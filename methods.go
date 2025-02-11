@@ -99,6 +99,7 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 	storage, ok := c.cache.storages[key]
 	if !ok {
 		//fmt.Println("1111 BEFORE func 'AddObjectToCache', SIZE =", c.cache.storages)
+		//fmt.Printf("func 'AddObjectToCache' time.Now().Add(c.maxTtl):'%v', maxTtl:'%d', time NOW:'%v'\n", time.Now().Add(c.maxTtl), c.maxTtl, time.Now())
 
 		c.cache.storages[key] = storageParameters[T]{
 			timeMain:       time.Now(),
@@ -377,8 +378,12 @@ func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
+	fmt.Println("func 'DeleteForTimeExpiryObjectFromCache'")
+
 	for key, storage := range c.cache.storages {
 		if storage.timeExpiry.Before(time.Now()) {
+			fmt.Println("func 'DeleteForTimeExpiryObjectFromCache' DELETE key:", key)
+
 			delete(c.cache.storages, key)
 		}
 	}
@@ -389,15 +394,26 @@ func (c *CacheStorageWithQueue[T]) DeleteOldestObjectFromCache() error {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
-	//получаем самый старый объект в кэше
-	index := c.getOldestObjectFromCache()
-	if storage, ok := c.cache.storages[index]; ok {
-		if storage.isExecution == false && (storage.isCompletedSuccessfully == true || storage.numberExecutionAttempts > 3) {
-			fmt.Printf("func 'DeleteOldestObjectFromCache', DELETE index:'%s'\n", index)
+	countObjDel := 1
 
-			delete(c.cache.storages, index)
-		} else {
-			return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
+	//проверяем, включен ли асинхронный режим и если да, то выполняем удаление
+	//группы самых старны объектов в кэше
+	if c.isAsync < c.cache.maxSize && c.isAsync >= 2 {
+		countObjDel = c.isAsync
+	}
+
+	//получаем самый старый объект в кэше
+	for i := 0; i < countObjDel; i++ {
+		index := c.getOldestObjectFromCache()
+		if storage, ok := c.cache.storages[index]; ok {
+			if storage.isExecution == false && (storage.isCompletedSuccessfully == true || storage.numberExecutionAttempts > 3) {
+
+				fmt.Printf("func 'DeleteOldestObjectFromCache', DELETE index:'%s'\n", index)
+
+				delete(c.cache.storages, index)
+			} else {
+				return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
+			}
 		}
 	}
 

@@ -3,6 +3,7 @@ package cachingstoragewithqueue_test
 import (
 	"context"
 	"fmt"
+	"log"
 	"testing"
 	"time"
 
@@ -40,11 +41,12 @@ func (sho *stopOptions) SetIsSuccess(v bool) {
 
 func TestSyncExecution(t *testing.T) {
 	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-		context.Background(),
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))
-	assert.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	listIdOne := []string{
 		"0000-0000",

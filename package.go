@@ -12,7 +12,7 @@ import (
 // режиме, браться объекты предназначенные для обработки. Для обработки объектов будет использоваться
 // пользовательская функция-обёртка, которую, как и обрабатываемый объект, добавляют с использованием
 // вспомогательного пользовательского типа.
-func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*CacheStorageWithQueue[T], error) {
+func NewCacheStorage[T any](opts ...cacheOptions[T]) (*CacheStorageWithQueue[T], error) {
 	cacheExObj := &CacheStorageWithQueue[T]{
 		//значение по умолчанию для интервала автоматической обработки
 		timeTick: time.Duration(5 * time.Second),
@@ -37,14 +37,21 @@ func NewCacheStorage[T any](ctx context.Context, opts ...cacheOptions[T]) (*Cach
 		}
 	}
 
-	go cacheExObj.automaticExecution(ctx)
+	//проверяем количество потоков и размер кэша, если многопоточный режим выполнения
+	//активирован
+	if cacheExObj.isAsync >= 2 {
+		//размер кэша должен как минимум в два раза превышать количество потоков асинхронного выполнения
+		if cacheExObj.cache.maxSize < cacheExObj.isAsync || (cacheExObj.cache.maxSize/cacheExObj.isAsync) < 2 {
+			return cacheExObj, errors.New("the cache size must be at least twice the number of asynchronous execution threads")
+		}
+	}
 
 	return cacheExObj, nil
 }
 
-// automaticExecution автоматическаяобработка очередей и кэш объектов
-func (c *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
-	tick := time.NewTicker(c.timeTick * time.Second)
+// StartAutomaticExecution автоматическая обработка очередей и объектов в кэше
+func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) {
+	tick := time.NewTicker(c.timeTick)
 	chStopHandler := make(chan HandlerOptionsStoper)
 
 	go func(ctx context.Context, tick *time.Ticker) {
@@ -74,6 +81,8 @@ func (c *CacheStorageWithQueue[T]) automaticExecution(ctx context.Context) {
 			if err := c.DeleteOldestObjectFromCache(); err != nil {
 				_, f, l, _ := runtime.Caller(0)
 				c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+
+				fmt.Println("Delete ERROR:", err)
 			}
 
 			continue
@@ -97,7 +106,7 @@ func WithMaxTtl[T any](v int) cacheOptions[T] {
 			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 300 seconds or more than 24 hours (86400 seconds)")
 		}
 
-		cswq.maxTtl = time.Duration(v)
+		cswq.maxTtl = time.Duration(v) * time.Second
 
 		return nil
 	}
@@ -112,13 +121,15 @@ func WithTimeTick[T any](v int) cacheOptions[T] {
 			return errors.New("the set clock cycle time should not be less than 3 seconds or more than 120 seconds")
 		}
 
-		cswq.timeTick = time.Duration(v)
+		cswq.timeTick = time.Duration(v) * time.Second
 
 		return nil
 	}
 }
 
 // WithMaxSize устанавливает максимальный размер кэша, не может быть меньше 3 и больше 1000 хранимых объектов
+// кроме того, размер кэша должен минимум в ДВА раза первышать количество асинхронных потоков
+// выполнения, если асинхронный режим активирован
 func WithMaxSize[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 3 || v > 1000 {
@@ -144,8 +155,9 @@ func WithLogging[T any](customLogging WriterLoggingData) cacheOptions[T] {
 
 // WithEnableAsyncProcessing устанавливает асинхронное выполнение функций в кэша, при этом
 // асинхронное выполнение будет активировано только если количество потоков, заданных
-// через эту функцию, будут два и более. Максимальное количество потоков ограничено, фактически,
-// только размером кэша
+// через эту функцию, будут два и более. Максимальное количество потоков должно быть меньше
+// размер кэша как минимум в ДВА раза. Например, если количество потоков 4, размер кэша не может
+// быть меньше 8
 func WithEnableAsyncProcessing[T any](numberStreams int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
 		cswq.isAsync = numberStreams

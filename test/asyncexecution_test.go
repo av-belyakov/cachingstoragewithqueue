@@ -1,8 +1,8 @@
 package cachingstoragewithqueue_test
 
 import (
-	"context"
 	"fmt"
+	"log"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -32,12 +32,13 @@ func TestAsynExecution(t *testing.T) {
 	}
 
 	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
-		context.Background(),
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10),
 		cachingstoragewithqueue.WithEnableAsyncProcessing[*objectsmispformat.ListFormatsMISP](4))
-	assert.NoError(t, err)
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	//добавление в очередь новых объектов
 	addObjectToQueue := func(lid []string) {
