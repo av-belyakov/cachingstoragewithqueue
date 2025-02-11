@@ -4,18 +4,22 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/av-belyakov/cachingstoragewithqueue"
 	"github.com/av-belyakov/cachingstoragewithqueue/examples"
 	"github.com/av-belyakov/objectsmispformat"
+	"github.com/google/uuid"
 )
 
 var (
-	cache       *cachingstoragewithqueue.CacheStorageWithQueue[*objectsmispformat.ListFormatsMISP]
-	listExample []string = []string{
+	cache *cachingstoragewithqueue.CacheStorageWithQueue[*objectsmispformat.ListFormatsMISP]
+	/*listExample []string = []string{
 		"aa83245",
 		"bb43522",
 		"cc19345",
@@ -31,19 +35,49 @@ var (
 		"nn14421",
 		"oo46231",
 		"pp51239",
-	}
+	}*/
 
 	err error
 )
 
 func main() {
 	// добавление в очередь новых объектов
-	addObjectToQueue := func(lid []string) {
+	/*addObjectToQueue := func(lid []string) {
 		for _, id := range lid {
 			soc := examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 			//для примера используем конструктор списка форматов MISP
 			objectTemplate := objectsmispformat.NewListFormatsMISP()
 			objectTemplate.ID = id
+
+			//заполняем вспомогательный тип
+			soc.SetID(objectTemplate.GetID())
+			soc.SetObject(objectTemplate)
+			soc.SetFunc(func(int) bool {
+				//здесь некий обработчик...
+				//в контексе работы с MISP здесь должен быть код отвечающий
+				//за REST запросы к серверу MISP
+				fmt.Println("function with ID:", soc.GetID())
+
+				return true
+			})
+
+			cache.PushObjectToQueue(soc)
+		}
+	}*/
+
+	addObjectToQueue := func(ctx context.Context) {
+		tick := time.NewTicker(4 * time.Second)
+
+		go func() {
+			<-ctx.Done()
+			tick.Stop()
+		}()
+
+		for range tick.C {
+			soc := examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
+			//для примера используем конструктор списка форматов MISP
+			objectTemplate := objectsmispformat.NewListFormatsMISP()
+			objectTemplate.ID = uuid.NewString()
 
 			//заполняем вспомогательный тип
 			soc.SetID(objectTemplate.GetID())
@@ -83,7 +117,14 @@ func main() {
 		log.Fatal(err)
 	}
 
-	addObjectToQueue(listExample)
+	//addObjectToQueue(listExample)
+	go addObjectToQueue(ctx)
+
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	log.Println("Package 'cachestoragewithqueue' is start")
 
 	cache.StartAutomaticExecution(ctx)
 }
