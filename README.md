@@ -26,11 +26,11 @@
 ### Инициализация нового хранилища
 
 ```
-	cache, err := cachingstoragewithqueue.NewCacheStorage[T any](
-		cachingstoragewithqueue.WithMaxTtl[T any](300),
-		cachingstoragewithqueue.WithTimeTick[T any](3),
-		cachingstoragewithqueue.WithMaxSize[T any](10),
-		cachingstoragewithqueue.WithEnableAsyncProcessing[T any](4))
+cache, err := cachingstoragewithqueue.NewCacheStorage[T any](
+	cachingstoragewithqueue.WithMaxTtl[T any](300),
+	cachingstoragewithqueue.WithTimeTick[T any](3),
+	cachingstoragewithqueue.WithMaxSize[T any](10),
+	cachingstoragewithqueue.WithEnableAsyncProcessing[T any](4))
 ```
 
 При инициализации можно усановить следующие необязательные опции:
