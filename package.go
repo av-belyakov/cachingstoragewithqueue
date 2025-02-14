@@ -117,10 +117,10 @@ func WithMaxTtl[T any](v int) cacheOptions[T] {
 
 // WithTimeTick устанавливает интервал времени, заданное время такта, по истечении которого
 // запускается новый виток автоматической обработки содержимого кэша, интервал значений должен
-// быть в диапазоне от 3 до 120 секунд
+// быть в диапазоне от 1 до 120 секунд
 func WithTimeTick[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
-		if v < 3 || v > 120 {
+		if v < 1 || v > 120 {
 			return errors.New("the set clock cycle time should not be less than 3 seconds or more than 120 seconds")
 		}
 
