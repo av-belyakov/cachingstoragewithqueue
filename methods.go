@@ -115,7 +115,7 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 		return fmt.Errorf("an object has been received whose key ID '%s' matches the already running object, ignore it", key)
 	}
 
-	//сравнение объектов из кэша и полученного из очереди, если они одинаковые то ошибка
+	//сравнение объектов из кэша и полученного из очереди
 	if value.Comparison(storage.originalObject) {
 		return fmt.Errorf("objects with key ID '%s' are completely identical, adding an object to the cache is not performed", key)
 	}
