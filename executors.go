@@ -43,6 +43,8 @@ func (c *CacheStorageWithQueue[T]) syncExecution(chStop chan<- HandlerOptionsSto
 
 	sho := NewStopHandlerOptions()
 	sho.SetIndex(index)
+	//функция f может принимать количество попыток обработки
+	//и как то их обрабатывать
 	sho.SetIsSuccess(f(0))
 
 	chStop <- sho
@@ -105,7 +107,9 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsSt
 
 		go func() {
 			chStop <- &stopHandlerOptions{
-				index:     index,
+				index: index,
+				//функция f может принимать количество попыток обработки
+				//и как то их обрабатывать
 				isSuccess: f(0),
 			}
 		}()

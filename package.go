@@ -56,6 +56,9 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 
 	go func(ctx context.Context, tick *time.Ticker) {
 		<-ctx.Done()
+
+		fmt.Println("Tick STOP")
+
 		tick.Stop()
 	}(ctx, tick)
 
@@ -63,6 +66,8 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 		for {
 			select {
 			case <-ctx.Done():
+				fmt.Println("STOP goroutin")
+
 				return
 
 			case obj := <-chStopHandler:

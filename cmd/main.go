@@ -8,7 +8,6 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/av-belyakov/cachingstoragewithqueue"
@@ -70,10 +69,19 @@ func main() {
 
 		go func() {
 			<-ctx.Done()
+			fmt.Println("func 'addObjectToQueue', STOP")
+
 			tick.Stop()
 		}()
 
+		var num int
 		for range tick.C {
+			if num == 45 {
+				tick.Stop()
+			}
+
+			num++
+
 			soc := examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
 			//для примера используем конструктор списка форматов MISP
 			objectTemplate := objectsmispformat.NewListFormatsMISP()
@@ -92,20 +100,35 @@ func main() {
 			})
 
 			cache.PushObjectToQueue(soc)
+
+			soc = examples.NewSpecialObjectForCache[*objectsmispformat.ListFormatsMISP]()
+			//для примера используем конструктор списка форматов MISP
+			objectTemplate = objectsmispformat.NewListFormatsMISP()
+			objectTemplate.ID = uuid.NewString()
+
+			//заполняем вспомогательный тип
+			soc.SetID(objectTemplate.GetID())
+			soc.SetObject(objectTemplate)
+			soc.SetFunc(func(int) bool {
+				//здесь некий обработчик...
+				//в контексе работы с MISP здесь должен быть код отвечающий
+				//за REST запросы к серверу MISP
+				fmt.Println("function with ID:", soc.GetID())
+
+				return true
+			})
+
+			cache.PushObjectToQueue(soc)
 		}
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(),
-		syscall.SIGHUP,
-		syscall.SIGINT,
-		syscall.SIGTERM,
-		syscall.SIGQUIT)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
+	defer stop()
 
 	go func() {
-		chSignal := make(chan os.Signal, 1)
-		log.Printf("system call:%+v", <-chSignal)
+		log.Printf("system call:%+v", <-ctx.Done())
 
-		cancel()
+		stop()
 	}()
 
 	cache, err = cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
@@ -120,11 +143,11 @@ func main() {
 	//addObjectToQueue(listExample)
 	go addObjectToQueue(ctx)
 
+	log.Println("Package 'cachestoragewithqueue' is start")
+
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
-
-	log.Println("Package 'cachestoragewithqueue' is start")
 
 	cache.StartAutomaticExecution(ctx)
 }
