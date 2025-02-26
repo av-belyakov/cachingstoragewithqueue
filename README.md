@@ -70,7 +70,7 @@ T any может быть любой пользовательский тип с�
 
 Конструктор хранилища:
 
-```
+```golang
 cache, err := cachingstoragewithqueue.NewCacheStorage[T any](
 	cachingstoragewithqueue.WithMaxTtl[T any](300),
 	cachingstoragewithqueue.WithTimeTick[T any](3),
@@ -102,7 +102,7 @@ cache, err := cachingstoragewithqueue.NewCacheStorage[T any](
 После инициализации хранилища запуск автоматической обработки объектов добавляемых в
 очередь, не происходит. Для того что бы это произошло нужно запустить дополнительный метод:
 
-```
+```golang
 cache.StartAutomaticExecution(ctx)
 ```
 
@@ -121,7 +121,7 @@ SpecialObjectComparator, который, в том числе реализует
 
 **Создаем пользовательский тип и инициализируем его через конструктор:**
 
-```
+```golang
 type SpecialObjectForCache[T SpecialObjectComparator] struct {
 	object      T
 	handlerFunc func(int) bool
@@ -135,7 +135,7 @@ func NewSpecialObjectForCache[T SpecialObjectComparator]() *SpecialObjectForCach
 
 **Риализуем дополнительные методы, необходимые для соответствия вновь созданного типа интерфейсу CacheStorageHandler:**
 
-```
+```golang
 func (o *SpecialObjectForCache[T]) SetID(v string) {
 	o.id = v
 }
@@ -169,7 +169,7 @@ func (o *SpecialObjectForCache[T]) Comparison(objFromCache T) bool {
 
 **Добавляем вспомогательный объект в очередь хранилища:**
 
-```
+```golang
 cache.PushObjectToQueue(CacheStorageFuncHandler[T any])
 ```
 
