@@ -14,33 +14,8 @@ import (
 	"github.com/av-belyakov/objectsmispformat"
 )
 
-type stopOptions struct {
-	index     string
-	isSuccess bool
-}
-
-// GetIndex получить индекс
-func (sho *stopOptions) GetIndex() string {
-	return sho.index
-}
-
-// SetIndex установить индекс
-func (sho *stopOptions) SetIndex(v string) {
-	sho.index = v
-}
-
-// GetIsSuccess получить статус
-func (sho *stopOptions) GetIsSuccess() bool {
-	return sho.isSuccess
-}
-
-// SetIsSuccess установить статус
-func (sho *stopOptions) SetIsSuccess(v bool) {
-	sho.isSuccess = v
-}
-
 func TestSyncExecution(t *testing.T) {
-	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
+	cache, err := cachingstoragewithqueue.NewCacheStorage(
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10))
@@ -123,7 +98,7 @@ func TestSyncExecution(t *testing.T) {
 			}
 
 			//кладем в кэш все объекты из очереди
-			cache.SyncExecution_Test(chStop)
+			cache.SyncExecution_Test(context.Background(), chStop)
 		}
 
 		time.Sleep(1 * time.Second)
@@ -223,7 +198,7 @@ func TestSyncExecution(t *testing.T) {
 			//пытаемся выполнить синхронную обработку, там же и добавляем новые объекты
 			//из кэша, однако первые 4 прохода объекты не добавляются, так как в кэше
 			//есть 1 объект мо статусом isExecute = true
-			cache.SyncExecution_Test(chStop)
+			cache.SyncExecution_Test(context.Background(), chStop)
 
 			//если из кэша не удалять самый старый объект, то тогда из очереди в кэш будут
 			// добавлены только 9 элементов, соответственно выход из цикла когда в очереди
@@ -278,7 +253,7 @@ func TestSyncExecution(t *testing.T) {
 				continue
 			}
 
-			cache.SyncExecution_Test(chStop)
+			cache.SyncExecution_Test(context.Background(), chStop)
 
 			if cache.GetSizeObjectToQueue() == 0 {
 				break

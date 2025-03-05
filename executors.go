@@ -1,12 +1,17 @@
 package cachingstoragewithqueue
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 )
 
 // syncExecution выполняет синхронную обработку функций из кэша
-func (c *CacheStorageWithQueue[T]) syncExecution(chStop chan<- HandlerOptionsStoper) {
+func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+	if ctx.Err() != nil {
+		return
+	}
+
 	//проверяем, вообще что либо в настоящий момент выполняется, если да, ожидание завершения
 	if len(c.GetIndexesWithIsExecutionStatus()) > 0 {
 		return
@@ -51,7 +56,11 @@ func (c *CacheStorageWithQueue[T]) syncExecution(chStop chan<- HandlerOptionsSto
 }
 
 // asyncExecution выполняет асинхронную обработку функций из кэша
-func (c *CacheStorageWithQueue[T]) asyncExecution(chStop chan<- HandlerOptionsStoper) {
+func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+	if ctx.Err() != nil {
+		return
+	}
+
 	listIndexes := c.GetIndexesWithIsExecutionStatus()
 
 	//проверяем, количество выполняемых функций соответствует максимальному количеству

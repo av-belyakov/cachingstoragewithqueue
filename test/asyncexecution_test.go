@@ -1,6 +1,7 @@
 package cachingstoragewithqueue_test
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"testing"
@@ -31,7 +32,7 @@ func TestAsynExecution(t *testing.T) {
 		"pp51239",
 	}
 
-	cache, err := cachingstoragewithqueue.NewCacheStorage[*objectsmispformat.ListFormatsMISP](
+	cache, err := cachingstoragewithqueue.NewCacheStorage(
 		cachingstoragewithqueue.WithMaxTtl[*objectsmispformat.ListFormatsMISP](300),
 		cachingstoragewithqueue.WithTimeTick[*objectsmispformat.ListFormatsMISP](3),
 		cachingstoragewithqueue.WithMaxSize[*objectsmispformat.ListFormatsMISP](10),
@@ -93,7 +94,7 @@ func TestAsynExecution(t *testing.T) {
 				break
 			}
 
-			go cache.AsyncExecution_Test(chStop)
+			go cache.AsyncExecution_Test(context.Background(), chStop)
 		}
 
 		<-chDone
