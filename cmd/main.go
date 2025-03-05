@@ -94,7 +94,7 @@ func main() {
 				//здесь некий обработчик...
 				//в контексе работы с MISP здесь должен быть код отвечающий
 				//за REST запросы к серверу MISP
-				fmt.Println("function with ID:", soc.GetID())
+				fmt.Println("1 function with ID:", soc.GetID())
 
 				return true
 			})
@@ -113,7 +113,7 @@ func main() {
 				//здесь некий обработчик...
 				//в контексе работы с MISP здесь должен быть код отвечающий
 				//за REST запросы к серверу MISP
-				fmt.Println("function with ID:", soc.GetID())
+				fmt.Println("2 function with ID:", soc.GetID())
 
 				return true
 			})
@@ -122,12 +122,14 @@ func main() {
 		}
 	}
 
+	chDone := make(chan struct{})
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, os.Kill)
 	defer stop()
 
 	go func() {
-		log.Printf("system call:%+v", <-ctx.Done())
-
+		<-ctx.Done()
+		chDone <- struct{}{}
 		stop()
 	}()
 
@@ -140,7 +142,6 @@ func main() {
 		log.Fatal(err)
 	}
 
-	//addObjectToQueue(listExample)
 	go addObjectToQueue(ctx)
 
 	log.Println("Package 'cachestoragewithqueue' is start")
@@ -150,4 +151,6 @@ func main() {
 	}()
 
 	cache.StartAutomaticExecution(ctx)
+
+	<-chDone
 }

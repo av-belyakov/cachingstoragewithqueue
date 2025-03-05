@@ -51,13 +51,7 @@ func NewCacheStorage[T any](opts ...cacheOptions[T]) (*CacheStorageWithQueue[T],
 
 // StartAutomaticExecution автоматическая обработка очередей и объектов в кэше
 func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) {
-	tick := time.NewTicker(c.timeTick)
 	chStopHandler := make(chan HandlerOptionsStoper)
-
-	go func(ctx context.Context, tick *time.Ticker) {
-		<-ctx.Done()
-		tick.Stop()
-	}(ctx, tick)
 
 	go func() {
 		for {
@@ -71,29 +65,40 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 		}
 	}()
 
-	for range tick.C {
-		//поиск и удаление из хранилища всех объектов у которых истекло время жизни
-		c.DeleteForTimeExpiryObjectFromCache()
+	go func() {
+		tick := time.NewTicker(c.timeTick)
+		defer tick.Stop()
 
-		//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
-		//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
-		if c.GetCacheSize() == c.cache.maxSize {
-			if err := c.DeleteOldestObjectFromCache(); err != nil {
-				_, f, l, _ := runtime.Caller(0)
-				c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+		for {
+			select {
+			case <-ctx.Done():
+				return
+
+			case <-tick.C:
+				//поиск и удаление из хранилища всех объектов у которых истекло время жизни
+				c.DeleteForTimeExpiryObjectFromCache()
+
+				//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
+				//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
+				if c.GetCacheSize() == c.cache.maxSize {
+					if err := c.DeleteOldestObjectFromCache(); err != nil {
+						_, f, l, _ := runtime.Caller(0)
+						c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+					}
+
+					continue
+				}
+
+				if c.isAsync >= 2 {
+					//асинхронная обработка задач
+					go c.asyncExecution(ctx, chStopHandler)
+				} else {
+					//синхронная обработка задач
+					go c.syncExecution(ctx, chStopHandler)
+				}
 			}
-
-			continue
 		}
-
-		if c.isAsync >= 2 {
-			//асинхронная обработка задач
-			go c.asyncExecution(chStopHandler)
-		} else {
-			//синхронная обработка задач
-			go c.syncExecution(chStopHandler)
-		}
-	}
+	}()
 }
 
 // WithMaxTtl устанавливает максимальное время, по истечении которого запись в cacheStorages будет

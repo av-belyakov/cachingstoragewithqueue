@@ -1,6 +1,7 @@
 package cachingstoragewithqueue
 
 import (
+	"context"
 	"fmt"
 	"time"
 )
@@ -514,13 +515,13 @@ func (c *CacheStorageWithQueue[T]) GetIsAsync_Test() int {
 }
 
 // SyncExecution_Test выполняет синхронную обработку функций из кэша (только для теста)
-func (c *CacheStorageWithQueue[T]) SyncExecution_Test(chStop chan<- HandlerOptionsStoper) {
-	c.syncExecution(chStop)
+func (c *CacheStorageWithQueue[T]) SyncExecution_Test(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+	c.syncExecution(ctx, chStop)
 }
 
 // AsyncExecution_Test выполняет асинхронную обработку функций из кэша (только для теста)
-func (c *CacheStorageWithQueue[T]) AsyncExecution_Test(chStop chan<- HandlerOptionsStoper) {
-	c.asyncExecution(chStop)
+func (c *CacheStorageWithQueue[T]) AsyncExecution_Test(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+	c.asyncExecution(ctx, chStop)
 }
 
 // AddObjectToCache_Test добавляет новый объект в хранилище (только для теста)
