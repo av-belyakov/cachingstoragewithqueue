@@ -562,7 +562,7 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache_Test(key string, timeExpiry 
 	storage.timeExpiry = timeExpiry
 	storage.isExecution = false
 	storage.isCompletedSuccessfully = false
-	storage.originalObject = value.GetObject()
+	storage.originalObject = value.MatchingAndReplacement(storage.originalObject)
 	storage.cacheFunc = value.GetFunc()
 
 	c.cache.storages[key] = storage

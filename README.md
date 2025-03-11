@@ -162,8 +162,17 @@ func (o *SpecialObjectForCache[T]) GetFunc() func(int) bool {
 
 func (o *SpecialObjectForCache[T]) Comparison(objFromCache T) bool {
     //некие сравнения...
+    //где объект o сравнивается с объектом objFromCache который уже
+    //находится в кеше
 
     return true
+}
+
+func (o *SpecialObjectForCache[T]) MatchingAndReplacement(objFromCache T) T {
+    //выполнение сопоставление элементов объектов и их замену
+    //модификации подвергается объект находящийся в кеше
+
+    return objFromCache
 }
 ```
 

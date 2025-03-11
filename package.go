@@ -91,10 +91,10 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 
 				if c.isAsync >= 2 {
 					//асинхронная обработка задач
-					go c.asyncExecution(ctx, chStopHandler)
+					c.asyncExecution(ctx, chStopHandler)
 				} else {
 					//синхронная обработка задач
-					go c.syncExecution(ctx, chStopHandler)
+					c.syncExecution(ctx, chStopHandler)
 				}
 			}
 		}

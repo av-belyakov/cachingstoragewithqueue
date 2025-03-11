@@ -57,3 +57,7 @@ func (o *SpecialObjectForCache[T]) Comparison(objFromCache T) bool {
 
 	return true
 }
+
+func (o *SpecialObjectForCache[T]) MatchingAndReplacement(objFromCache T) T {
+	return objFromCache
+}
