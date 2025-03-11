@@ -1,5 +1,5 @@
 package cachingstoragewithqueue
 
 func GetVersion() string {
-	return "0.1.7"
+	return "0.2.1"
 }

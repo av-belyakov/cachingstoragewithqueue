@@ -4,6 +4,7 @@ type CacheStorageHandler[T any] interface {
 	CacheStorageGetter[T]
 	CacheStorageSetter[T]
 	Comparison(T) bool
+	MatchingAndReplacement(objFromCache T) T
 }
 
 type CacheStorageGetter[T any] interface {
