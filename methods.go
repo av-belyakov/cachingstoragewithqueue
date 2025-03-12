@@ -121,12 +121,15 @@ func (c *CacheStorageWithQueue[T]) AddObjectToCache(key string, value CacheStora
 		return fmt.Errorf("objects with key ID '%s' are completely identical, adding an object to the cache is not performed", key)
 	}
 
+	//если объекты разные то выполяем модификацию объекта который находится в кеше
+	newObject := value.MatchingAndReplacement(storage.originalObject)
+
 	//если объекты с одним и тем же ключём разные, заменяем объект в кэше более новым
 	storage.timeMain = time.Now()
 	storage.timeExpiry = time.Now().Add(c.maxTtl)
 	storage.isExecution = false
 	storage.isCompletedSuccessfully = false
-	storage.originalObject = value.GetObject()
+	storage.originalObject = newObject
 	storage.cacheFunc = value.GetFunc()
 
 	//добавление нового объекта в кэш
