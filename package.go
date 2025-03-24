@@ -83,7 +83,7 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 				if c.GetCacheSize() == c.cache.maxSize {
 					if err := c.DeleteOldestObjectFromCache(); err != nil {
 						_, f, l, _ := runtime.Caller(0)
-						c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+						c.logging.Write("error", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
 					}
 
 					continue
@@ -102,10 +102,10 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 }
 
 // WithMaxTtl устанавливает максимальное время, по истечении которого запись в cacheStorages будет
-// удалена, допустимый интервал времени хранения записи от 300 до 86400 секунд
+// удалена, допустимый интервал времени хранения записи от 60 до 86400 секунд
 func WithMaxTtl[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
-		if v < 300 || v > 86400 {
+		if v < 60 || v > 86400 {
 			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 300 seconds or more than 24 hours (86400 seconds)")
 		}
 
