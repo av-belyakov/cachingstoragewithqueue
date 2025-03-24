@@ -22,7 +22,7 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop cha
 	if !isEmpty {
 		if err := c.AddObjectToCache(currentObject.GetID(), currentObject); err != nil {
 			_, f, l, _ := runtime.Caller(0)
-			c.logging.Write("warning", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+			c.logging.Write("warning", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
 
 			return
 		}
@@ -85,7 +85,7 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context, chStop ch
 
 			if err := c.AddObjectToCache(object.GetID(), object); err != nil {
 				_, f, l, _ := runtime.Caller(0)
-				c.logging.Write("warning", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+				c.logging.Write("warning", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
 			} else {
 				indexes = append(indexes, object.GetID())
 			}
