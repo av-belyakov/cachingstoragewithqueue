@@ -83,7 +83,7 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 				if c.GetCacheSize() == c.cache.maxSize {
 					if err := c.DeleteOldestObjectFromCache(); err != nil {
 						_, f, l, _ := runtime.Caller(0)
-						c.logging.Write("error", fmt.Sprintf("cachingstoragewithQueue package: '%s' %s:%d", err.Error(), f, l-1))
+						c.logging.Write("error", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
 					}
 
 					continue
