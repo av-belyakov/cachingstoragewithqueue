@@ -71,16 +71,14 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 					if err := c.DeleteOldestObjectFromCache(); err != nil {
 						c.logging.Write("error", supportingfunctions.CustomError(fmt.Errorf("cachingstoragewithqueue package: '%s'", err.Error())).Error())
 					}
-
-					continue
 				}
 
 				if c.isAsync >= 2 {
 					//асинхронная обработка задач
-					go c.asyncExecution(ctx)
+					c.asyncExecution(ctx)
 				} else {
 					//синхронная обработка задач
-					go c.syncExecution(ctx)
+					c.syncExecution(ctx)
 				}
 			}
 		}

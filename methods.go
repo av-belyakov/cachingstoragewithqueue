@@ -367,6 +367,18 @@ func (c *CacheStorageWithQueue[T]) ChangeValues(index string, isSuccess bool) {
 	c.setIsExecutionFalse(index)
 }
 
+// ChangeExecution меняет статус выполнения функции на 'функция в обработке', увеличивает кол-во
+// попыток обработки функции на 1
+func (c *CacheStorageWithQueue[T]) ChangeExecution(index string) {
+	c.cache.mutex.Lock()
+	defer c.cache.mutex.Unlock()
+
+	//функция для данного объекта выполняется
+	c.setIsExecutionTrue(index)
+	// увеличиваем количество попыток выполнения функции
+	c.increaseNumberExecutionAttempts(index)
+}
+
 // DeleteForTimeExpiryObjectFromCache удаляет все объекты у которых истекло время жизни, без учета других параметров
 func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() {
 	c.cache.mutex.Lock()
