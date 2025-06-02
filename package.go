@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime"
 	"time"
+
+	"github.com/av-belyakov/cachingstoragewithqueue/internal/supportingfunctions"
 )
 
 // NewCacheStorage создает новое кэширующее хранилище, а также очередь из которой будут, в автоматическом
@@ -51,20 +52,6 @@ func NewCacheStorage[T any](opts ...cacheOptions[T]) (*CacheStorageWithQueue[T],
 
 // StartAutomaticExecution автоматическая обработка очередей и объектов в кэше
 func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) {
-	chStopHandler := make(chan HandlerOptionsStoper)
-
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-
-			case obj := <-chStopHandler:
-				c.ChangeValues(obj.GetIndex(), obj.GetIsSuccess())
-			}
-		}
-	}()
-
 	go func() {
 		tick := time.NewTicker(c.timeTick)
 		defer tick.Stop()
@@ -82,8 +69,7 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 				//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
 				if c.GetCacheSize() == c.cache.maxSize {
 					if err := c.DeleteOldestObjectFromCache(); err != nil {
-						_, f, l, _ := runtime.Caller(0)
-						c.logging.Write("error", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
+						c.logging.Write("error", supportingfunctions.CustomError(fmt.Errorf("cachingstoragewithqueue package: '%s'", err.Error())).Error())
 					}
 
 					continue
@@ -91,10 +77,10 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 
 				if c.isAsync >= 2 {
 					//асинхронная обработка задач
-					go c.asyncExecution(ctx, chStopHandler)
+					go c.asyncExecution(ctx)
 				} else {
 					//синхронная обработка задач
-					go c.syncExecution(ctx, chStopHandler)
+					go c.syncExecution(ctx)
 				}
 			}
 		}
