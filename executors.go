@@ -19,8 +19,8 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context) {
 	}
 
 	currentObject, isEmpty := c.PullObjectFromQueue()
-	// если очередь с объектами для обработки не пуста
-	if !isEmpty {
+	// если очередь с объектами для обработки не пуста и есть место в кеше
+	if !isEmpty && c.GetCacheSize() < c.cache.maxSize {
 		if err := c.AddObjectToCache(currentObject.GetID(), currentObject); err != nil {
 			c.logging.Write("warning", supportingfunctions.CustomError(fmt.Errorf("cachingstoragewithqueue package: '%s'", err.Error())).Error())
 
@@ -39,17 +39,16 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context) {
 		return
 	}
 
-	c.cache.mutex.Lock()
-	//функция для данного объекта выполняется
-	c.setIsExecutionTrue(index)
-	// увеличиваем количество попыток выполнения функции
-	c.increaseNumberExecutionAttempts(index)
-	c.cache.mutex.Unlock()
+	//меняем статус выполнения функции на 'функция в обработке',
+	// увеличиваем кол-во попыток обработки функции на 1
+	c.ChangeExecution(index)
 
 	//выполняем функцию и изменяем состояние задачи
+	status := f(0)
+
 	//меняется 'execution' на false, а успешность выполнения
 	//задачи на значение полученное от функции
-	c.ChangeValues(index, f(0))
+	c.ChangeValues(index, status)
 }
 
 // asyncExecution выполняет асинхронную обработку функций из кэша
@@ -70,7 +69,7 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context) {
 	pushObjectToCache := func(count int) []string {
 		indexes := make([]string, 0, count)
 
-		for i := 0; i < count; i++ {
+		for range count {
 			if c.GetCacheSize() >= c.cache.maxSize {
 				return indexes
 			}
