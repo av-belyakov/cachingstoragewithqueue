@@ -368,15 +368,19 @@ func (c *CacheStorageWithQueue[T]) ChangeValues(index string, isSuccess bool) {
 }
 
 // DeleteForTimeExpiryObjectFromCache удаляет все объекты у которых истекло время жизни, без учета других параметров
-func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() {
+func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() error {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
 	for key, storage := range c.cache.storages {
 		if storage.timeExpiry.Before(time.Now()) {
 			delete(c.cache.storages, key)
+
+			return fmt.Errorf("the oldest object with the id '%s' was deleted", key)
 		}
 	}
+
+	return nil
 }
 
 // DeleteOldestObjectFromCache поиск и удаление самого старого объекта в кэше
@@ -387,16 +391,16 @@ func (c *CacheStorageWithQueue[T]) DeleteOldestObjectFromCache() error {
 	countObjDel := 1
 
 	//проверяем, включен ли асинхронный режим и если да, то выполняем удаление
-	//группы самых старны объектов в кэше
+	//группы самых старых объектов в кэше
 	if c.isAsync < c.cache.maxSize && c.isAsync >= 2 {
 		countObjDel = c.isAsync
 	}
 
 	//получаем самый старый объект в кэше
-	for i := 0; i < countObjDel; i++ {
+	for range countObjDel {
 		index := c.getOldestObjectFromCache()
 		if storage, ok := c.cache.storages[index]; ok {
-			if storage.isExecution == false && (storage.isCompletedSuccessfully == true || storage.numberExecutionAttempts > 3) {
+			if !storage.isExecution && (storage.isCompletedSuccessfully || storage.numberExecutionAttempts > 3) {
 				delete(c.cache.storages, index)
 			} else {
 				return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
