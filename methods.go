@@ -402,7 +402,9 @@ func (c *CacheStorageWithQueue[T]) DeleteOldestObjectFromCache() error {
 	for range countObjDel {
 		index := c.getOldestObjectFromCache()
 		if storage, ok := c.cache.storages[index]; ok {
-			if !storage.isExecution && (storage.isCompletedSuccessfully || storage.numberExecutionAttempts > 3) {
+			if !storage.isExecution && storage.isCompletedSuccessfully {
+				delete(c.cache.storages, index)
+			} else if storage.numberExecutionAttempts == 3 {
 				delete(c.cache.storages, index)
 			} else {
 				return fmt.Errorf("the object with id '%s' cannot be deleted, it may be in progress", index)
@@ -525,12 +527,12 @@ func (c *CacheStorageWithQueue[T]) GetIsAsync_Test() int {
 
 // SyncExecution_Test выполняет синхронную обработку функций из кэша (только для теста)
 func (c *CacheStorageWithQueue[T]) SyncExecution_Test(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
-	c.syncExecution(ctx, chStop)
+	c.syncExecution(ctx)
 }
 
 // AsyncExecution_Test выполняет асинхронную обработку функций из кэша (только для теста)
 func (c *CacheStorageWithQueue[T]) AsyncExecution_Test(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
-	c.asyncExecution(ctx, chStop)
+	c.asyncExecution(ctx)
 }
 
 // AddObjectToCache_Test добавляет новый объект в хранилище (только для теста)

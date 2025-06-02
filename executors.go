@@ -3,11 +3,12 @@ package cachingstoragewithqueue
 import (
 	"context"
 	"fmt"
-	"runtime"
+
+	"github.com/av-belyakov/cachingstoragewithqueue/internal/supportingfunctions"
 )
 
 // syncExecution выполняет синхронную обработку функций из кэша
-func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -21,8 +22,7 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop cha
 	// если очередь с объектами для обработки не пуста
 	if !isEmpty {
 		if err := c.AddObjectToCache(currentObject.GetID(), currentObject); err != nil {
-			_, f, l, _ := runtime.Caller(0)
-			c.logging.Write("warning", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
+			c.logging.Write("warning", supportingfunctions.CustomError(fmt.Errorf("cachingstoragewithqueue package: '%s'", err.Error())).Error())
 
 			return
 		}
@@ -46,21 +46,14 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop cha
 	c.increaseNumberExecutionAttempts(index)
 	c.cache.mutex.Unlock()
 
+	//выполняем функцию и изменяем состояние задачи
+	//меняется 'execution' на false, а успешность выполнения
+	//задачи на значение полученное от функции
 	c.ChangeValues(index, f(0))
-
-	/*
-		sho := NewStopHandlerOptions()
-		sho.SetIndex(index)
-		//функция f может принимать количество попыток обработки
-		//и как то их обрабатывать
-		sho.SetIsSuccess(f(0))
-
-		chStop <- sho
-	*/
 }
 
 // asyncExecution выполняет асинхронную обработку функций из кэша
-func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context, chStop chan<- HandlerOptionsStoper) {
+func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -88,8 +81,7 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context, chStop ch
 			}
 
 			if err := c.AddObjectToCache(object.GetID(), object); err != nil {
-				_, f, l, _ := runtime.Caller(0)
-				c.logging.Write("warning", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
+				c.logging.Write("warning", supportingfunctions.CustomError(fmt.Errorf("cachingstoragewithqueue package: '%s'", err.Error())).Error())
 			} else {
 				indexes = append(indexes, object.GetID())
 			}
@@ -118,13 +110,8 @@ func (c *CacheStorageWithQueue[T]) asyncExecution(ctx context.Context, chStop ch
 		// увеличиваем количество попыток выполнения функции
 		c.increaseNumberExecutionAttempts(index)
 
-		go func() {
-			chStop <- &stopHandlerOptions{
-				index: index,
-				//функция f может принимать количество попыток обработки
-				//и как то их обрабатывать
-				isSuccess: f(0),
-			}
-		}()
+		go func(ind string) {
+			c.ChangeValues(ind, f(0))
+		}(index)
 	}
 }
