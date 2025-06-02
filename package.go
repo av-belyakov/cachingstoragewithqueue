@@ -76,7 +76,10 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 
 			case <-tick.C:
 				//поиск и удаление из хранилища всех объектов у которых истекло время жизни
-				c.DeleteForTimeExpiryObjectFromCache()
+				if err := c.DeleteForTimeExpiryObjectFromCache(); err != nil {
+					_, f, l, _ := runtime.Caller(0)
+					c.logging.Write("error", fmt.Sprintf("cachingstoragewithqueue package: '%s' %s:%d", err.Error(), f, l-1))
+				}
 
 				//поиск и удаление самого старого объекта если размер кэша достиг максимального значения
 				//выполняется удаление объекта который в настоящее время не выполняеться и ранее был успешно выполнен
