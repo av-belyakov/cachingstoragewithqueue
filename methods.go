@@ -368,19 +368,21 @@ func (c *CacheStorageWithQueue[T]) ChangeValues(index string, isSuccess bool) {
 }
 
 // DeleteForTimeExpiryObjectFromCache удаляет все объекты у которых истекло время жизни, без учета других параметров
-func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() error {
+func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
+	fmt.Println("func 'DeleteForTimeExpiryObjectFromCache', START")
+	fmt.Println("Size cache:", len(c.cache.storages))
+
 	for key, storage := range c.cache.storages {
+
+		fmt.Printf("timeExpiry: %s - %s time now\n", storage.timeExpiry, time.Now())
+
 		if storage.timeExpiry.Before(time.Now()) {
 			delete(c.cache.storages, key)
-
-			return fmt.Errorf("the oldest object with the id '%s' was deleted", key)
 		}
 	}
-
-	return nil
 }
 
 // DeleteOldestObjectFromCache поиск и удаление самого старого объекта в кэше

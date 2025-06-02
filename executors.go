@@ -46,13 +46,17 @@ func (c *CacheStorageWithQueue[T]) syncExecution(ctx context.Context, chStop cha
 	c.increaseNumberExecutionAttempts(index)
 	c.cache.mutex.Unlock()
 
-	sho := NewStopHandlerOptions()
-	sho.SetIndex(index)
-	//функция f может принимать количество попыток обработки
-	//и как то их обрабатывать
-	sho.SetIsSuccess(f(0))
+	c.ChangeValues(index, f(0))
 
-	chStop <- sho
+	/*
+		sho := NewStopHandlerOptions()
+		sho.SetIndex(index)
+		//функция f может принимать количество попыток обработки
+		//и как то их обрабатывать
+		sho.SetIsSuccess(f(0))
+
+		chStop <- sho
+	*/
 }
 
 // asyncExecution выполняет асинхронную обработку функций из кэша
