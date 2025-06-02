@@ -372,14 +372,8 @@ func (c *CacheStorageWithQueue[T]) DeleteForTimeExpiryObjectFromCache() {
 	c.cache.mutex.Lock()
 	defer c.cache.mutex.Unlock()
 
-	fmt.Println("func 'DeleteForTimeExpiryObjectFromCache', size cache:", len(c.cache.storages))
-
 	for key, storage := range c.cache.storages {
-		fmt.Printf("timeExpiry: %s - %s time now\n", storage.timeExpiry, time.Now())
-
 		if storage.timeExpiry.Before(time.Now()) {
-			fmt.Printf("the object with id '%s' was deleted at the end of its lifetime", key)
-
 			delete(c.cache.storages, key)
 		}
 	}
