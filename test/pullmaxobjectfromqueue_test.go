@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/av-belyakov/cachingstoragewithqueue"
 	"github.com/av-belyakov/cachingstoragewithqueue/examples"
 	"github.com/av-belyakov/objectsmispformat"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPullMaxObjectFromQueue(t *testing.T) {
