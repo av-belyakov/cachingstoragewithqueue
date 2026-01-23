@@ -90,7 +90,7 @@ func (c *CacheStorageWithQueue[T]) StartAutomaticExecution(ctx context.Context) 
 func WithMaxTtl[T any](v int) cacheOptions[T] {
 	return func(cswq *CacheStorageWithQueue[T]) error {
 		if v < 10 || v > 86400 {
-			return errors.New("the maximum time after which an entry in the cache will be deleted should not be less than 300 seconds or more than 24 hours (86400 seconds)")
+			return fmt.Errorf("the maximum time after which an entry in the cache will be deleted should not be less than 300 seconds or more than 24 hours (86400 seconds), current time set '%d'", v)
 		}
 
 		cswq.maxTtl = time.Duration(v) * time.Second
